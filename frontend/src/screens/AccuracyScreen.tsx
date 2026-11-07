@@ -31,6 +31,8 @@ interface CriterionAgreement {
   agreement_pct: number;
   /** Scale criteria only: AI within one scale step of the gold standard, 0–100. */
   within_step_pct?: number;
+  /** Scale criteria only: quadratic-weighted Cohen's κ — the correct agreement metric for ordinal scales. */
+  kappa_q?: number;
 }
 
 interface DialogComparison {
@@ -191,6 +193,7 @@ const useStyles = makeStyles({
   trackThin: { height: "5px" },
   fill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: "inherit" },
   barValue: { minWidth: "44px", textAlign: "right", fontVariantNumeric: "tabular-nums" },
+  kappa: { color: derived.graphiteStrong, fontVariantNumeric: "tabular-nums", paddingLeft: "2px" },
 
   scatterBox: { width: "100%", maxWidth: "420px", alignSelf: "center" },
   scatter: { width: "100%", height: "auto", display: "block" },
@@ -318,6 +321,11 @@ function CriteriaBars({ criteria }: { criteria: CriterionAgreement[] }) {
                     <Bar value={c.within_step_pct} color={STEP_COLOR} label={`${c.name}: в пределах одной ступени`} thin />
                     <Caption1 className={mergeClasses(s.barValue, s.muted)}>{c.within_step_pct}%</Caption1>
                   </div>
+                ) : null}
+                {c.kappa_q != null ? (
+                  <Caption1 className={s.kappa} title="Квадратично-взвешенная каппа Коэна — корректная метрика согласия для порядковых шкал">
+                    κ_q {String(c.kappa_q).replace(".", ",")} · {c.kappa_q >= 0.8 ? "почти идеальное согласие" : c.kappa_q >= 0.6 ? "хорошее согласие" : "умеренное"}
+                  </Caption1>
                 ) : null}
               </div>
             </div>
@@ -652,7 +660,7 @@ export function AccuracyScreen() {
         </div>
         <div className={s.methodItem}>
           <span className={s.methodHead}>Правильная метрика</span>
-          <span className={s.methodBody}>На субъективных шкалах exact-match искажён. Показываем и точное совпадение, и согласие в пределах одного шага — стандарт надёжности.</span>
+          <span className={s.methodBody}>На порядковых шкалах exact-match искажён (anchoring-bias — подтверждено в литературе). Показываем точное совпадение, согласие в пределах шага и κ_q — квадратично-взвешенную каппу, корректную метрику для шкал.</span>
         </div>
         <div className={s.methodItem}>
           <span className={s.methodHead}>Прозрачно</span>

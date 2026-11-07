@@ -25,7 +25,8 @@
       "id": "c04",
       "name": "Корректная и полная консультация",
       "agreement_pct": 77,
-      "within_step_pct": 83
+      "within_step_pct": 94,
+      "kappa_q": 0.89
     },
     {
       "id": "c05",
@@ -36,7 +37,8 @@
       "id": "c06",
       "name": "Управление диалогом, скорость и грамотность",
       "agreement_pct": 77,
-      "within_step_pct": 91
+      "within_step_pct": 89,
+      "kappa_q": 0.7
     },
     {
       "id": "c07",
