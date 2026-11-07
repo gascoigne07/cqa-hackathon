@@ -360,7 +360,7 @@ export function DialogsScreen({ grossOnly = false }: { grossOnly?: boolean }) {
 
       <BatchProgress job={batch.job} error={batch.error} />
       {showStale ? (
-        <MessageBar intent="warning">
+        <MessageBar intent="warning" layout="multiline">
           <MessageBarBody>
             {stale.length} из {rows.length} диалогов в списке не оценены моделью «{provider?.name}» — в CSV/JSON попадёт их последняя
             оценка другой модели или пустая строка: {stale.slice(0, 5).map((d) => d.conversation_id).join(", ")}
@@ -369,17 +369,17 @@ export function DialogsScreen({ grossOnly = false }: { grossOnly?: boolean }) {
         </MessageBar>
       ) : null}
       {notice ? (
-        <MessageBar intent={notice.intent}>
+        <MessageBar intent={notice.intent} layout="multiline">
           <MessageBarBody>{notice.text}</MessageBarBody>
         </MessageBar>
       ) : null}
       {grossOnly && reasons.error ? (
-        <MessageBar intent="warning">
+        <MessageBar intent="warning" layout="multiline">
           <MessageBarBody>Не удалось загрузить причины грубых ошибок: {reasons.error.message}. Откройте диалог — причина в разборе.</MessageBarBody>
         </MessageBar>
       ) : null}
       {dialogs.error ? (
-        <MessageBar intent="error">
+        <MessageBar intent="error" layout="multiline">
           <MessageBarBody>Список диалогов не загрузился: {(dialogs.error as Error).message}. Проверьте, что сервер запущен, и обновите страницу.</MessageBarBody>
         </MessageBar>
       ) : null}

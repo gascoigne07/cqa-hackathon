@@ -84,8 +84,11 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--expect", type=int)
     ap.add_argument("--provider", default="claude")
-    ap.add_argument("--team", default=os.environ.get("CQA_TEAM", "УКАЖИ_НАЗВАНИЕ_КОМАНДЫ"))
+    ap.add_argument("--team", default=os.environ.get("CQA_TEAM", "KOSHAKANCHIKI"))
     ap.add_argument("--limit", type=int, help="score only the first N (format testing)")
+    ap.add_argument("--no-rescore", action="store_true",
+                    help="не переоценивать: взять ПОСЛЕДНИЕ оценки из /api/export и только переформатировать "
+                         "в официальный вид (для H23: диалоги уже оценены в UI; совпадает с тем, что на демо)")
     a = ap.parse_args()
 
     try:
@@ -96,12 +99,26 @@ def main():
     dialogs = [d for d in api("GET", "/api/dialogs") if d.get("dataset") == a.group]
     if a.limit:
         dialogs = dialogs[:a.limit]
-    print(f"{a.group}: {len(dialogs)} диалогов через {a.provider}")
+
+    # --no-rescore: одним запросом берём уже готовые оценки, не тратим модель
+    existing = None
+    if a.no_rescore:
+        ids = [d["conversation_id"] for d in dialogs]
+        rows = api("GET", f"/api/export?format=json&ids={','.join(ids)}") if ids else []
+        existing = {r["conversation_id"]: r.get("score") for r in rows}
+
+    mode = "готовые оценки из UI (--no-rescore)" if a.no_rescore else f"переоценка через {a.provider}"
+    print(f"{a.group}: {len(dialogs)} диалогов · {mode}")
     results = []
     for i, d in enumerate(dialogs, 1):
         cid = d["conversation_id"]
         try:
-            res = api("POST", "/api/score", {"dialog_id": cid, "provider": a.provider})
+            if a.no_rescore:
+                res = (existing or {}).get(cid)
+                if not res:
+                    raise RuntimeError("нет готовой оценки — оцени набор в UI перед экспортом")
+            else:
+                res = api("POST", "/api/score", {"dialog_id": cid, "provider": a.provider})
             results.append(map_dialog(cid, res))
             print(f"  {i}/{len(dialogs)} {cid}: {res.get('total')}")
         except Exception as e:  # noqa: BLE001

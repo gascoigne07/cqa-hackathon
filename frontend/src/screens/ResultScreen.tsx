@@ -278,7 +278,7 @@ export function ResultScreen({ dialogId, focus: focusCriterion }: { dialogId: st
   if (dialogQ.isLoading) return <Spinner label="Загружаем диалог…" />;
   if (dialogQ.error || !dialog) {
     return (
-      <MessageBar intent="error">
+      <MessageBar intent="error" layout="multiline">
         <MessageBarBody>
           Диалога {dialogId} нет в загруженных наборах. Вернитесь <Link href={href({ name: "dialogs" })}>к списку диалогов</Link> и выберите
           другой или загрузите набор заново.
@@ -434,7 +434,7 @@ export function ResultScreen({ dialogId, focus: focusCriterion }: { dialogId: st
       ) : null}
 
       {runScore.error ? (
-        <MessageBar intent="error">
+        <MessageBar intent="error" layout="multiline">
           <MessageBarBody>
             Оценка не прошла: {(runScore.error as Error).message}. Проверьте, что выбранная модель подключена, или переключитесь на демо-модель в шапке.
           </MessageBarBody>

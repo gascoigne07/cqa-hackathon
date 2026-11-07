@@ -47,6 +47,7 @@ interface CalibrationData {
   gold_dialogs: number;
   mae: number;
   within_10: number;
+  within_1_pct: number; // adjacent agreement across all criteria (the honest metric for subjective scales)
   gross_error_match: string;
   note: string;
   criteria: CriterionAgreement[];
@@ -598,6 +599,11 @@ export function AccuracyScreen() {
           value={`${data.within_10}/${data.gold_dialogs}`}
           unit={`(${percent(data.within_10, data.gold_dialogs)}%)`}
           hint="диалогов, где итог ИИ близок к эталону"
+        />
+        <Stat
+          label="Совпадение по критериям (±1 шаг)"
+          value={`${String(data.within_1_pct).replace(".", ",")}%`}
+          hint="вердикт в пределах одного шага шкалы — стандартная метрика для субъективной оценки"
         />
         <Stat
           label="Грубые ошибки"
