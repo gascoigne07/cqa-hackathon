@@ -150,6 +150,7 @@ export function DialogsScreen({ grossOnly = false }: { grossOnly?: boolean }) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("order");
   const [importOpen, setImportOpen] = useState(false);
+  const [batchConfirm, setBatchConfirm] = useState(false);
   const [groupId, setGroupId] = useState("DEV");
   const [notice, setNotice] = useState<{ intent: "success" | "error"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -211,6 +212,11 @@ export function DialogsScreen({ grossOnly = false }: { grossOnly?: boolean }) {
     setLanguage("");
     setChannel("");
     if (grossOnly) setGrossOnly(false);
+  }
+
+  function startBatch() {
+    setBatchConfirm(false);
+    batch.start({ dialog_ids: rows.map((r) => r.conversation_id), provider: provider?.id });
   }
 
   async function runImport() {
@@ -352,7 +358,7 @@ export function DialogsScreen({ grossOnly = false }: { grossOnly?: boolean }) {
           appearance="primary"
           size="small"
           disabled={batch.running || !rows.length || !provider?.available}
-          onClick={() => batch.start({ dialog_ids: rows.map((r) => r.conversation_id), provider: provider?.id })}
+          onClick={() => (provider?.kind === "cloud" ? setBatchConfirm(true) : startBatch())}
         >
           {batch.running ? "Идёт оценка…" : filtered ? `Оценить выбранные (${rows.length})` : "Оценить все"}
         </Button>
@@ -440,6 +446,24 @@ export function DialogsScreen({ grossOnly = false }: { grossOnly?: boolean }) {
           </table>
         )}
       </div>
+
+      <Dialog open={batchConfirm} onOpenChange={(_, d) => setBatchConfirm(d.open)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Оценить {rows.length} диалогов через «{provider?.name}»?</DialogTitle>
+            <DialogContent>
+              Это платная облачная модель — будет сделано {rows.length} оценок (каждая — несколько вызовов). Для бесплатного прогона
+              переключитесь на «Демо» в шапке. Продолжить на «{provider?.name}»?
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setBatchConfirm(false)}>Отмена</Button>
+              <Button appearance="primary" onClick={startBatch}>
+                Оценить {rows.length} на «{provider?.name}»
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
 
       <Dialog open={importOpen} onOpenChange={(_, d) => setImportOpen(d.open)}>
         <DialogSurface>

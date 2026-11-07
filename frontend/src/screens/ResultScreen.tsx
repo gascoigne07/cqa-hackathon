@@ -169,6 +169,15 @@ function criteriaPhrase(n: number): string {
   return `${n} критериев требуют`;
 }
 
+/** критерий · критерия · критериев */
+function critWord(n: number): string {
+  const d10 = n % 10;
+  const d100 = n % 100;
+  if (d10 === 1 && d100 !== 11) return "критерий";
+  if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return "критерия";
+  return "критериев";
+}
+
 const LEGEND: EventKind[] = ["violation", "risk", "pause", "good"];
 const fmtDate = (d: Date) =>
   d.toLocaleString("ru-RU", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -406,7 +415,7 @@ export function ResultScreen({ dialogId, focus: focusCriterion }: { dialogId: st
       {score?.gross_error && !busy ? (
         <MessageBar intent="error" layout="multiline" icon={<ErrorCircleFilled style={{ color: palette.violationText }} />} style={{ backgroundColor: derived.violationTint, border: `1px solid ${palette.violation}`, borderLeft: `4px solid ${palette.violation}` }}>
           <MessageBarBody>
-            <MessageBarTitle>Грубая ошибка{gross.length > 1 ? ` · ${gross.length} критерия` : ""}</MessageBarTitle>
+            <MessageBarTitle>Грубая ошибка{gross.length > 1 ? ` · ${gross.length} ${critWord(gross.length)}` : ""}</MessageBarTitle>
             <div className={s.grossList}>
               {gross.length ? (
                 gross.map((r) => (
@@ -444,7 +453,7 @@ export function ResultScreen({ dialogId, focus: focusCriterion }: { dialogId: st
       <section className={s.strip} aria-labelledby="strip-title">
         <div className={s.stripHead}>
           <h2 id="strip-title" className={s.stripTitle}>
-            Лента записи
+            {call ? "Лента записи" : "Лента диалога"}
           </h2>
           <div className={s.legend}>
             {LEGEND.map((k) => (

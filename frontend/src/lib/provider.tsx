@@ -26,13 +26,14 @@ export function ProviderProvider({ children }: { children: ReactNode }) {
   const providers = q.data ?? FALLBACK_PROVIDERS;
   const [selected, setSelected] = useState<string | null>(readSaved);
 
-  // fall back to the first available provider when the saved one is gone or unavailable
+  // default to the free demo provider when none is saved, so a stray click never bills the cloud;
+  // the presenter deliberately switches to Claude for the demo (and that choice is remembered)
   useEffect(() => {
     if (!q.data) return;
     const current = q.data.find((p) => p.id === selected);
     if (!current || !current.available) {
-      const first = q.data.find((p) => p.available);
-      if (first) setSelected(first.id);
+      const fallback = q.data.find((p) => p.id === "mock" && p.available) ?? q.data.find((p) => p.available);
+      if (fallback) setSelected(fallback.id);
     }
   }, [q.data, selected]);
 

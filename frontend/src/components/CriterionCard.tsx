@@ -217,7 +217,7 @@ export function CriterionCard({ result: r, name, section, onEvidence, onRange, o
           <b>Ступень {formatScore(r.raw_score)}:</b> {stepMeaning(r)}
         </Caption1>
       ) : null}
-      {r.explanation ? <Body1>{r.explanation}</Body1> : null}
+      {r.explanation ? <Body1>{r.explanation.replace(/^\[mock\]\s*/, "")}</Body1> : null}
       {!r.applicable ? (
         <Caption1 className={s.muted}>
           <b>Почему N/A:</b> {r.na_reason || "не указано"} — вес перераспределён между применимыми критериями.
@@ -265,7 +265,7 @@ export function CriterionCard({ result: r, name, section, onEvidence, onRange, o
         <div className={s.trail}>
           <Caption1>
             <b>Исходная:</b> {snapshotLabel(r.original.verdict, r.original.raw_score, r.scale_max)} (
-            {r.original.points == null ? "исключён" : `${formatScore(r.original.points)} б.`}) — {r.original.explanation}
+            {r.original.points == null ? "исключён" : `${formatScore(r.original.points)} б.`}) — {r.original.explanation.replace(/^\[mock\]\s*/, "")}
           </Caption1>
           {appeal?.review ? (
             <Caption1>

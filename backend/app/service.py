@@ -422,7 +422,10 @@ def appeal_detail(appeal_id: int) -> AppealDetail:
         raise NotFound("Оценка не найдена")
     dialog = require_dialog(a.dialog_id)
     final, original = compute_pair(sc, dialog)
-    disputed = next(r for r in original.results if r.criterion_id == a.criterion_id)
+    # a resolved appeal shows the post-decision criterion (matches the recalculated total shown next to it);
+    # an open appeal shows the original disputed result
+    source = final if a.status != "open" else original
+    disputed = next(r for r in source.results if r.criterion_id == a.criterion_id)
 
     n = len(dialog.transcript)
     ev_idx = [e.turn_idx for e in disputed.evidence_all]
