@@ -1,9 +1,10 @@
 # secrets / local config
 backend/.env
 
-# local data (organizers' dataset, database, cached call recordings)
+# local data (database, cached call recordings) — DEV sample IS committed so a clone runs populated
 backend/data/
 !backend/data/.gitkeep
+!backend/data/dev.json
 
 # python
 __pycache__/
