@@ -1,0 +1,31 @@
+# keep the build context small and secret-free
+.git
+**/.DS_Store
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.venv
+**/.venv*
+**/node_modules
+
+# secrets — set them as environment variables in the hosting panel instead
+**/.env
+!backend/.env.example
+
+# local state: database and cached call recordings (dev.json may stay — it is the seed dataset)
+backend/data/*.db
+backend/data/*.db-*
+backend/data/audio
+
+# not needed in the image
+backend/tests
+frontend/src
+frontend/dist-webresource
+frontend/index.html
+frontend/package*.json
+frontend/tsconfig*
+frontend/vite.config.ts
+labeling
+ml
+*.log
+*.zip

@@ -1,0 +1,21 @@
+# Render Blueprint: Dashboard → New → Blueprint → pick this repo.
+# Free plan sleeps after ~15 min idle (first request then takes ~1 min) — open the URL before the demo.
+services:
+  - type: web
+    name: cqa-hackathon
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: CQA_API_URL          # organizers' signed GET link — enter it in the dashboard, never commit it
+        sync: false
+      - key: CQA_DEFAULT_PROVIDER
+        value: mock
+      - key: CQA_CORS_ORIGINS
+        value: "*"
+      - key: CQA_SEED_GROUP       # dataset downloaded on start when backend/data/dev.json is absent
+        value: DEV

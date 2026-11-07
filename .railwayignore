@@ -1,0 +1,9 @@
+# `railway up` uploads the folder (respecting .gitignore too); never send secrets or local state
+backend/.env
+**/.venv
+**/.venv*
+**/node_modules
+backend/data/*.db
+backend/data/*.db-*
+backend/data/audio
+*.zip
