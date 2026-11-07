@@ -48,6 +48,7 @@ const useStyles = makeStyles({
   subTitle: { color: tokens.colorNeutralForeground1 },
   subNote: { color: tokens.colorNeutralForeground3 },
   grow: { flexGrow: 1 },
+  // 4 tabs don't fit on a phone: scroll them sideways instead of widening the page.
   tabs: { maxWidth: "100%", overflowX: "auto", scrollbarWidth: "none", "::-webkit-scrollbar": { display: "none" } },
   main: { padding: "20px", maxWidth: "1520px", width: "100%", margin: "0 auto", boxSizing: "border-box" },
 });
@@ -85,7 +86,10 @@ function Shell() {
         <header className={s.bar}>
           <Brand />
           <div className={s.tabs}>
-            <TabList selectedValue={tab} onTabSelect={(_, d) => navigate({ name: d.value as "dialogs" | "checklist" | "appeals" | "accuracy" })}>
+            <TabList
+              selectedValue={tab}
+              onTabSelect={(_, d) => navigate({ name: d.value as "dialogs" | "checklist" | "appeals" | "accuracy" })}
+            >
               <Tab value="dialogs" icon={<ChatMultipleRegular />}>
                 Диалоги
               </Tab>
