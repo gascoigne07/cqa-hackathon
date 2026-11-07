@@ -209,6 +209,20 @@ const useStyles = makeStyles({
   delta: { display: "inline-flex", alignItems: "center", gap: "6px", fontVariantNumeric: "tabular-nums", fontWeight: 600, whiteSpace: "nowrap" },
   deltaDot: { width: "7px", height: "7px", borderRadius: "50%", flexShrink: 0 },
 
+  method: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))",
+    gap: "12px 22px",
+    padding: "14px 16px",
+    backgroundColor: derived.raised,
+    border: `1px solid ${palette.grid}`,
+    borderRadius: radius.panel,
+  },
+  methodTitle: { margin: 0, fontSize: type.sm, fontWeight: 600, color: palette.ink, gridColumn: "1 / -1" },
+  methodItem: { display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 },
+  methodHead: { fontSize: type.sm, fontWeight: 600, color: palette.ink },
+  methodBody: { fontSize: type.xs, lineHeight: "1.45", color: derived.graphiteStrong },
+
   note: {
     display: "flex",
     gap: "10px",
@@ -625,6 +639,26 @@ export function AccuracyScreen() {
       </div>
 
       <DialogsTable dialogs={data.dialogs} />
+
+      <div className={s.method}>
+        <p className={s.methodTitle}>Как мы это меряем — и почему этому можно верить</p>
+        <div className={s.methodItem}>
+          <span className={s.methodHead}>Честно против эксперта</span>
+          <span className={s.methodBody}>Оценки ИИ сверяются с эталоном, размеченным вручную по чек-листу. Это не самооценка модели.</span>
+        </div>
+        <div className={s.methodItem}>
+          <span className={s.methodHead}>Воспроизводимо</span>
+          <span className={s.methodBody}>Каждый диалог — голосование из 5 прогонов (self-consistency); уверенность и флаг «проверить» на спорных.</span>
+        </div>
+        <div className={s.methodItem}>
+          <span className={s.methodHead}>Правильная метрика</span>
+          <span className={s.methodBody}>На субъективных шкалах exact-match искажён. Показываем и точное совпадение, и согласие в пределах одного шага — стандарт надёжности.</span>
+        </div>
+        <div className={s.methodItem}>
+          <span className={s.methodHead}>Прозрачно</span>
+          <span className={s.methodBody}>Каждый вердикт — с цитатой из диалога; спорную оценку можно оспорить и пересмотреть.</span>
+        </div>
+      </div>
 
       <div className={s.note}>
         <InfoRegular className={s.noteIcon} />
