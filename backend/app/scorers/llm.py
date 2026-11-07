@@ -156,6 +156,7 @@ class GeminiScorer(LLMScorer):
     id = "gemini"
     name = "Облако · Gemini"
     kind = "cloud"
+    optional = True  # empty slot — Claude is the implemented cloud provider; hide unless wired
     env_flag = "CQA_GEMINI_API_KEY"
 
     def model_name(self) -> str:

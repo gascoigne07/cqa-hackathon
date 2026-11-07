@@ -1,7 +1,8 @@
 # Деплой CQA
 
 **Живой URL: <https://cqa-web-production.up.railway.app>**
-Railway · проект `cqa-hackathon` · сервис `cqa-web` · провайдер оценки `mock`.
+Railway · проект `cqa-hackathon` · сервис `cqa-web` · провайдер оценки `mock` (публичный `/api/score` на Claude тратит кредит —
+Claude включаем только на окно демо, см. «Флип на Claude»).
 Проверка здоровья: <https://cqa-web-production.up.railway.app/api/health> → `{"ok":true,"dialogs":65,...}`.
 
 Один Docker-контейнер = API (FastAPI) + собранный фронт (`frontend/dist`), бэкенд сам отдаёт фронт.
@@ -13,6 +14,7 @@ Railway · проект `cqa-hackathon` · сервис `cqa-web` · прова�
 | `.dockerignore` | не пускает в образ `.env`, `.venv`, `node_modules`, базу и кэш записей |
 | `deploy/fetch_seed.py` | при старте: если нет `backend/data/dev.json` (он в `.gitignore`), скачивает датасет из `CQA_API_URL` — свежий деплой сразу с диалогами |
 | `deploy/smoke_test.py` | сквозная проверка любого адреса: список → «Оценить» → апелляция → пересмотр → правка чек-листа → запись звонка → экспорт |
+| `deploy/flip.sh` | переключение живого сервиса mock ⇄ Claude на окно демо (`claude` / `mock` / `status`, `DRY_RUN=1`) |
 | `railway.json`, `.railwayignore` | сборка по Dockerfile, healthcheck `/api/health`; что не загружать через `railway up` |
 | `render.yaml` | Blueprint для Render (запасной вариант) |
 
@@ -26,6 +28,9 @@ Railway · проект `cqa-hackathon` · сервис `cqa-web` · прова�
 | `CQA_DEFAULT_PROVIDER` | `mock` сейчас; после интеграции судьи — id провайдера ML-команды | да |
 | `CQA_CORS_ORIGINS` | `*` | да |
 | `CQA_SEED_GROUP` | `DEV` — какой набор скачать при старте, если нет `dev.json` | нет |
+| `CQA_ANTHROPIC_API_KEY` | ключ Claude — **только на окно демо**, ставит `deploy/flip.sh claude` | на демо |
+| `CQA_ANTHROPIC_MODEL` | модель Claude (по умолчанию `claude-sonnet-5`) | опц. |
+| `CQA_CLAUDE_SAMPLES` | голосов self-consistency на критерий (по умолчанию 5) | опц. |
 | `CQA_GEMINI_API_KEY`, `CQA_GEMINI_MODEL` | ключ/модель Gemini | когда подключат |
 | `CQA_OPENAI_API_KEY`, `CQA_OPENAI_MODEL` | OpenAI | опц. |
 | `CQA_GROQ_API_KEY`, `CQA_GROQ_MODEL` | Groq | опц. |
@@ -45,6 +50,8 @@ docker run -p 8000:8000 --env-file backend/.env cqa  # как в проде: к�
 python3 deploy/smoke_test.py http://localhost:8000
 ```
 
+Обновлено 7 ноября, 23:00: задеплоена текущая версия (v2 + Claude-провайдер + вкладка «Точность» + уверенность ИИ),
+на живом URL проверены «Диалоги» (65), «Результат» («уверенность — демо» на mock), «Чек-лист», «Апелляции», «Точность».
 Проверено 7 ноября: оба режима старта (с `dev.json` и со скачиванием из API), healthcheck `healthy`,
 smoke-тест 10/10 локально и на живом URL; в браузере — список, «Оценить», апелляции, чек-лист.
 
@@ -67,6 +74,40 @@ railway domain --service cqa-web                     # публичный *.up.r
 - Вариант без CLI: Railway → New Project → Deploy from GitHub repo → `cqa-hackathon` → Variables (таблица выше) →
   Settings → Networking → Generate Domain. Сборка возьмёт `Dockerfile` и `railway.json`.
 
+## Флип на Claude (окно демо)
+
+Сайт всё время работает на `mock`; Claude включаем только на время показа и сразу выключаем — иначе любой с адресом
+жжёт кредит (одно «Оценить» = 5 вызовов модели, «Применить ко всем диалогам» = 65 × 5 = 325 вызовов).
+
+**Один раз заранее:** положить ключ в `backend/.env` (он в `.gitignore`, в git не попадает):
+```
+CQA_ANTHROPIC_API_KEY=sk-ant-...
+# по желанию: CQA_ANTHROPIC_MODEL=claude-sonnet-5   CQA_CLAUDE_SAMPLES=5
+```
+Нужен Railway CLI с входом и привязкой к проекту: `railway login`, затем в корне проекта `railway link` (проект `cqa-hackathon`).
+
+**Перед демо — одна команда** (из корня проекта):
+```bash
+deploy/flip.sh claude
+```
+Скрипт передаёт ключ в Railway через stdin (не светится ни в аргументах, ни в истории), ставит
+`CQA_DEFAULT_PROVIDER=claude`, делает **один** редеплой, ждёт `SUCCESS` (~1–2 мин) и печатает статус:
+`Claude: ВКЛЮЧЁН (claude-sonnet-5)`. Затем на демо-машине:
+1. обновить страницу и выбрать **«Облако · Claude»** в переключателе модели — браузер помнит прошлый выбор (`Демо`);
+2. редеплой стёр данные → **после** флипа оценить 3–4 диалога, завести апелляцию (подготовка демо);
+3. «Применить ко всем диалогам» на Claude не нажимать без нужды (325 вызовов).
+
+**Сразу после демо — вернуть mock:**
+```bash
+deploy/flip.sh mock
+```
+Удаляет `CQA_ANTHROPIC_API_KEY` из Railway (это само запускает редеплой) и ставит `CQA_DEFAULT_PROVIDER=mock`.
+Статус в любой момент: `deploy/flip.sh status`. Репетиция без изменений: `DRY_RUN=1 deploy/flip.sh claude`.
+
+**Без скрипта (панель Railway):** сервис `cqa-web` → Variables → добавить `CQA_ANTHROPIC_API_KEY`, поменять
+`CQA_DEFAULT_PROVIDER` на `claude` → Deploy. Назад: удалить ключ, `CQA_DEFAULT_PROVIDER=mock` → Deploy.
+Если после флипа статус всё ещё «Claude: выключен» — `railway up --service cqa-web --detach` (новый деплой с текущими переменными).
+
 ## Деплой на Render (запасной)
 
 Dashboard → New → Blueprint → репозиторий → Render прочитает `render.yaml` и попросит значение `CQA_API_URL`.
@@ -86,3 +127,8 @@ Dashboard → New → Blueprint → репозиторий → Render прочи
   до демо, чтобы сервис не остановили. Бесплатный план Railway: $1 кредитов в месяц, 0.5 GB RAM на сервис.
 - Railway помечает `railway.json` как устаревший формат (работает до 01.12.2026); после хакатона — `railway config migrate`.
 - Переключение на настоящую модель: задать ключ провайдера и `CQA_DEFAULT_PROVIDER` в Variables — код не трогаем.
+
+## Контрольный этап H23
+Пошаговый runbook (импорт нового group_id → замена критерия → переоценка → экспорт), реальные тайминги
+и подводные камни — в **[deploy/CONTROL_RUNBOOK.md](deploy/CONTROL_RUNBOOK.md)**. Безопасная переоценка
+только контрольных диалогов: `deploy/h23_control.sh`. Отчёт dry-run + баги — `deploy/DRYRUN_H23.md`.
