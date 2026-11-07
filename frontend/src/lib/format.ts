@@ -49,7 +49,8 @@ export function scoreTone(score: number | null | undefined): Tone {
 
 export function formatScore(score: number | null | undefined): string {
   if (score == null) return "—";
-  return Number.isInteger(score) ? String(score) : score.toFixed(1).replace(/\.0$/, "");
+  // Russian decimal comma: 64,7
+  return Number.isInteger(score) ? String(score) : score.toFixed(1).replace(/\.0$/, "").replace(".", ",");
 }
 
 export function ratio(points: number | null | undefined, max: number | null | undefined): number | null {

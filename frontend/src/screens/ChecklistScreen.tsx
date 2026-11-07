@@ -1,5 +1,4 @@
 import {
-  Badge,
   Body1,
   Button,
   Caption1,
@@ -22,7 +21,6 @@ import {
   Switch,
   Text,
   Textarea,
-  Title3,
   Tooltip,
   makeStyles,
   mergeClasses,
@@ -47,17 +45,20 @@ import { BatchProgress } from "../components/BatchProgress";
 import { CHECKLIST_CHANNEL_LABEL, TYPE_LABEL, dateTime, formatScore, isCall } from "../lib/format";
 import { useProvider } from "../lib/provider";
 import { useBatchJob } from "../lib/useBatchJob";
-import { BRAND_GREEN } from "../theme";
+import { ToneBadge } from "../components/ScoreBadge";
+import { derived, palette, radius, type } from "../theme";
 
 /** № · criterion · type · weight · share · flags · actions */
 const COLS = "28px minmax(0, 1fr) 118px 96px 70px 128px 124px";
 const COLS_NARROW = "24px minmax(0, 1fr) 96px 124px";
-const SECTION_COLORS = [BRAND_GREEN, "#5b9bd5", "#e8b04a", "#a97fd6", "#e8846a", "#3bb5ab"];
+/* Sections are structure, not meaning: a neutral ramp, no hues. */
+const SECTION_COLORS = [palette.ink, "#3F4C47", palette.graphite, "#7F8B85", "#A3ADA7", "#2C3934"];
 
 const useStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", gap: "12px", paddingBottom: "8px" },
   top: { display: "flex", gap: "12px 24px", alignItems: "flex-end", flexWrap: "wrap" },
   intro: { flex: "1 1 420px", minWidth: 0 },
+  h1: { margin: "0 0 4px", fontSize: type.xl, fontWeight: 600, lineHeight: "1.15", color: palette.ink },
   version: { flex: "0 1 520px", minWidth: 0, maxWidth: "100%", "& .fui-Select, & select": { width: "100%", minWidth: 0 } },
   grow: { flexGrow: 1 },
   muted: { color: tokens.colorNeutralForeground3 },
@@ -74,7 +75,7 @@ const useStyles = makeStyles({
     padding: "12px 14px",
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
   },
-  bar: { display: "flex", height: "8px", borderRadius: "4px", overflow: "hidden", gap: "2px" },
+  bar: { display: "flex", height: "8px", borderRadius: radius.strip, overflow: "hidden", gap: "2px" },
   legend: { display: "flex", gap: "6px 16px", flexWrap: "wrap" },
   legendItem: { display: "inline-flex", alignItems: "center", gap: "6px" },
   dot: { width: "8px", height: "8px", borderRadius: "50%", flexShrink: 0 },
@@ -142,9 +143,9 @@ const useStyles = makeStyles({
     alignItems: "center",
     flexWrap: "wrap",
     padding: "10px 14px",
-    backgroundColor: tokens.colorNeutralBackground1,
-    boxShadow: tokens.shadow16,
-    borderRadius: tokens.borderRadiusLarge,
+    backgroundColor: derived.raised,
+    border: `1px solid ${palette.ink}`,
+    borderRadius: radius.panel,
     zIndex: 1,
   },
   progressRow: { flexBasis: "100%" },
@@ -339,7 +340,7 @@ export function ChecklistScreen() {
     <div className={s.root}>
       <div className={s.top}>
         <div className={s.intro}>
-          <Title3>Чек-лист</Title3>
+          <h1 className={s.h1}>Чек-лист</h1>
           <Caption1 className={s.muted} block>
             {draft.note || "Всё берётся из конфигурации."} Сохранение создаёт новую версию; для чатов и звонков используется самая новая.
           </Caption1>
@@ -478,19 +479,13 @@ export function ChecklistScreen() {
                 <Caption1 className={mergeClasses(s.share, s.hideNarrow)}>{c.weight === 0 ? "—" : `${pct(c.weight)}%`}</Caption1>
                 <div className={mergeClasses(s.flags, s.hideNarrow)}>
                   {c.weight === 0 ? (
-                    <Badge size="small" appearance="tint" color="informative">
-                      без баллов
-                    </Badge>
+                    <ToneBadge tone="subtle">без баллов</ToneBadge>
                   ) : null}
                   {c.na_allowed || c.type === "yes_no_na" ? (
-                    <Badge size="small" appearance="outline" color="informative">
-                      N/A
-                    </Badge>
+                    <ToneBadge tone="subtle">N/A</ToneBadge>
                   ) : null}
                   {c.gross_error_if ? (
-                    <Badge size="small" appearance="filled" color="danger">
-                      грубая
-                    </Badge>
+                    <ToneBadge tone="informative">грубая ошибка</ToneBadge>
                   ) : null}
                 </div>
                 <div className={s.actions} onClick={stop}>

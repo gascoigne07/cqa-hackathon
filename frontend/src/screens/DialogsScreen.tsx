@@ -1,8 +1,5 @@
 import {
-  Badge,
   Button,
-  Caption1,
-  Card,
   Dialog,
   DialogActions,
   DialogBody,
@@ -16,53 +13,108 @@ import {
   MessageBarBody,
   Select,
   Spinner,
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableHeaderCell,
-  TableRow,
-  Text,
-  Title3,
   makeStyles,
-  tokens,
+  mergeClasses,
 } from "@fluentui/react-components";
-import { ArrowDownloadRegular, ArrowUploadRegular, CloudArrowDownRegular, TaskListLtrRegular } from "@fluentui/react-icons";
+import { ArrowDownloadRegular, ArrowUploadRegular, CloudArrowDownRegular, MicRegular, SearchRegular } from "@fluentui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { api } from "../api/cqa";
-import type { DialogListItem } from "../api/contract";
+import type { DialogListItem, ScoreResponse } from "../api/contract";
 import { BatchProgress } from "../components/BatchProgress";
-import { ScoreBadge } from "../components/ScoreBadge";
+import { MiniStrip } from "../components/MiniStrip";
+import { ScoreBadge, ToneBadge } from "../components/ScoreBadge";
+import { miniMarks } from "../lib/events";
 import { channelLabel, formatScore, pickChecklist } from "../lib/format";
 import { useProvider } from "../lib/provider";
 import { useBatchJob } from "../lib/useBatchJob";
 import { href, navigate } from "../router";
+import { derived, palette, radius, type } from "../theme";
+
+const NARROW = "@media (max-width: 700px)";
 
 const useStyles = makeStyles({
-  root: { display: "flex", flexDirection: "column", gap: "16px" },
-  header: { display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "16px", flexWrap: "wrap" },
-  stats: { display: "flex", gap: "12px", flexWrap: "wrap" },
-  stat: { padding: "10px 14px", minWidth: "130px", gap: "2px" },
-  statValue: { fontSize: tokens.fontSizeBase600, fontWeight: tokens.fontWeightSemibold, fontVariantNumeric: "tabular-nums" },
-  muted: { color: tokens.colorNeutralForeground3 },
-  toolbar: { display: "flex", gap: "8px", alignItems: "flex-end", flexWrap: "wrap" },
-  grow: { flexGrow: 1 },
-  tableWrap: { overflowX: "auto", backgroundColor: tokens.colorNeutralBackground1, borderRadius: tokens.borderRadiusLarge },
-  row: { cursor: "pointer", ":hover": { backgroundColor: tokens.colorNeutralBackground1Hover } },
-  preview: {
-    display: "-webkit-box",
-    WebkitLineClamp: "2",
-    WebkitBoxOrient: "vertical",
-    overflow: "hidden",
-    color: tokens.colorNeutralForeground2,
+  root: { display: "flex", flexDirection: "column", gap: "14px" },
+  head: { display: "flex", flexDirection: "column", gap: "4px" },
+  h1: { margin: 0, fontSize: type.xl, fontWeight: 600, lineHeight: "1.15", color: palette.ink },
+  summary: { margin: 0, fontSize: type.md, color: palette.ink, fontVariantNumeric: "tabular-nums" },
+  sub: { margin: 0, fontSize: type.xs, color: derived.graphiteStrong },
+
+  toolbar: {
+    display: "flex",
+    gap: "8px",
+    alignItems: "center",
+    flexWrap: "wrap",
+    paddingTop: "10px",
+    borderTop: `1px solid ${palette.ink}`,
   },
-  status: { display: "flex", gap: "4px", flexWrap: "wrap" },
-  num: { fontVariantNumeric: "tabular-nums" },
-  empty: { padding: "24px", display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-start" },
+  search: { width: "240px", "@media (max-width: 600px)": { width: "100%" } },
+  grow: { flexGrow: 1 },
+  quiet: { display: "flex", gap: "2px", flexWrap: "wrap" },
+
+  /* the journal: one dense row per dialog */
+  journal: { backgroundColor: derived.raised, border: `1px solid ${palette.grid}`, borderRadius: radius.panel, overflowX: "auto" },
+  table: {
+    width: "100%",
+    minWidth: "860px",
+    borderCollapse: "collapse",
+    fontSize: type.sm,
+    // phone: each dialog becomes a two-line card instead of a sideways-scrolling table
+    [NARROW]: { minWidth: "0", display: "block", "& thead": { display: "none" }, "& tbody": { display: "block" } },
+  },
+  th: {
+    position: "sticky",
+    top: 0,
+    textAlign: "left",
+    fontWeight: 500,
+    fontSize: type.xs,
+    color: derived.graphiteStrong,
+    padding: "9px 12px",
+    borderBottom: `1px solid ${palette.grid}`,
+    backgroundColor: derived.raised,
+    whiteSpace: "nowrap",
+  },
+  tr: {
+    cursor: "pointer",
+    ":hover": { backgroundColor: derived.raisedHover },
+    ":focus-within": { backgroundColor: derived.raisedHover },
+    [NARROW]: { display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: "12px", padding: "10px 14px", borderBottom: `1px solid ${palette.grid}` },
+  },
+  td: {
+    padding: "7px 12px",
+    borderBottom: `1px solid ${palette.grid}`,
+    verticalAlign: "middle",
+    [NARROW]: { display: "block", padding: "2px 0", borderBottom: "none", ":empty": { display: "none" } },
+  },
+  tdMain: { [NARROW]: { flexBasis: "100%", minWidth: 0 } },
+  tdChan: { [NARROW]: { flexGrow: 1 } },
+  tdScore: { [NARROW]: { order: 2 } },
+  tdStrip: { [NARROW]: { order: 3, flexBasis: "100%", paddingTop: "4px" } },
+  tdTags: { [NARROW]: { order: 4, flexBasis: "100%" } },
+  id: { fontWeight: 600, color: palette.ink, textDecorationLine: "none", fontVariantNumeric: "tabular-nums", ":hover": { textDecorationLine: "underline" } },
+  preview: {
+    display: "block",
+    maxWidth: "420px",
+    [NARROW]: { maxWidth: "100%" },
+    marginTop: "2px",
+    color: derived.graphiteStrong,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  chan: { display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" },
+  tags: { display: "flex", gap: "4px", flexWrap: "wrap" },
+  muted: { color: derived.graphiteStrong, fontSize: type.xs },
+  empty: { padding: "22px 20px", display: "flex", flexDirection: "column", gap: "10px", alignItems: "flex-start" },
+  emptyText: { margin: 0, fontSize: type.md, lineHeight: "1.5", maxWidth: "62ch" },
 });
 
 type SortKey = "order" | "score";
+
+interface ExportRow {
+  conversation_id: string;
+  score: ScoreResponse | null;
+}
 
 export function DialogsScreen() {
   const s = useStyles();
@@ -105,6 +157,7 @@ export function DialogsScreen() {
   const totals = scored.map((d) => d.last_score!.total).filter((t): t is number => t != null);
   const avg = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : null;
   const openAppeals = scored.reduce((n, d) => n + (d.last_score?.open_appeals ?? 0), 0);
+  const gross = scored.filter((d) => d.last_score?.gross_error).length;
   const languages = [...new Set(all.map((d) => d.language))];
   const channels = [...new Set(all.map((d) => d.channel))];
   const datasets = [...new Set(all.map((d) => d.dataset ?? "").filter(Boolean))];
@@ -112,6 +165,20 @@ export function DialogsScreen() {
   // Export takes each dialog's latest score: flag rows not scored by the selected model (e.g. an old mock score).
   const stale = provider ? rows.filter((d) => d.last_score?.provider !== provider.id) : [];
   const showStale = stale.length > 0 && rows.some((d) => d.last_score);
+
+  // mini strips: one read of the existing export endpoint (latest results of every dialog)
+  const signature = scored.map((d) => d.last_score!.score_id).join(",");
+  const strips = useQuery({
+    queryKey: ["journal-strips", signature],
+    enabled: scored.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const r = await fetch(api.exportUrl("json"));
+      if (!r.ok) throw new Error(String(r.status));
+      const data = (await r.json()) as ExportRow[];
+      return new Map(data.map((row) => [row.conversation_id, row.score]));
+    },
+  });
 
   async function runImport() {
     setBusy(true);
@@ -122,7 +189,7 @@ export function DialogsScreen() {
       setImportOpen(false);
       await qc.invalidateQueries({ queryKey: ["dialogs"] });
     } catch (e) {
-      setNotice({ intent: "error", text: e instanceof Error ? e.message : String(e) });
+      setNotice({ intent: "error", text: `Импорт не прошёл: ${e instanceof Error ? e.message : String(e)}. Проверьте group_id и что CQA_API_URL задан на сервере.` });
     } finally {
       setBusy(false);
     }
@@ -136,122 +203,110 @@ export function DialogsScreen() {
       setDataset(r.dataset);
       await qc.invalidateQueries({ queryKey: ["dialogs"] });
     } catch (e) {
-      setNotice({ intent: "error", text: e instanceof Error ? e.message : String(e) });
+      setNotice({ intent: "error", text: `Файл не загрузился: ${e instanceof Error ? e.message : String(e)}. Нужен JSON в формате API организаторов.` });
     } finally {
       setBusy(false);
       if (fileInput.current) fileInput.current.value = "";
     }
   }
 
+  const filtered = rows.length !== all.length;
+  const resetFilters = () => {
+    setDataset("");
+    setSearch("");
+    setLanguage("");
+    setChannel("");
+  };
+
   return (
     <div className={s.root}>
-      <div className={s.header}>
-        <div>
-          <Title3>Диалоги</Title3>
-          <Caption1 className={s.muted} block>
-            Чаты — {chatChecklist ? `«${chatChecklist.name}» (#${chatChecklist.id})` : "…"} · звонки —{" "}
-            {callChecklist ? `«${callChecklist.name}» (#${callChecklist.id})` : "…"} · модель: {provider?.name ?? "—"}
-          </Caption1>
-        </div>
-        <div className={s.stats}>
-          <Card className={s.stat}>
-            <Caption1 className={s.muted}>Диалогов</Caption1>
-            <span className={s.statValue}>{dialogs.data ? all.length : "—"}</span>
-          </Card>
-          <Card className={s.stat}>
-            <Caption1 className={s.muted}>Оценено</Caption1>
-            <span className={s.statValue}>{scored.length}</span>
-          </Card>
-          <Card className={s.stat}>
-            <Caption1 className={s.muted}>Средний балл</Caption1>
-            <span className={s.statValue}>{formatScore(avg == null ? null : Math.round(avg * 10) / 10)}</span>
-          </Card>
-          <Card className={s.stat}>
-            <Caption1 className={s.muted}>Открытых апелляций</Caption1>
-            <span className={s.statValue}>{openAppeals}</span>
-          </Card>
-        </div>
+      <div className={s.head}>
+        <h1 className={s.h1}>Диалоги</h1>
+        <p className={s.summary}>
+          {dialogs.data ? `${all.length} диалогов` : "—"} · оценено {scored.length} · средний балл{" "}
+          {formatScore(avg == null ? null : Math.round(avg * 10) / 10)} · грубых нарушений {gross} · открытых апелляций {openAppeals}
+        </p>
+        <p className={s.sub}>
+          Чаты — {chatChecklist ? `«${chatChecklist.name}» (#${chatChecklist.id})` : "…"} · звонки —{" "}
+          {callChecklist ? `«${callChecklist.name}» (#${callChecklist.id})` : "…"} · модель: {provider?.name ?? "—"}
+        </p>
       </div>
 
       <div className={s.toolbar}>
-        <Field label="Поиск">
-          <Input value={search} onChange={(_, d) => setSearch(d.value)} placeholder="ID или текст" />
-        </Field>
-        <Field label="Набор">
-          <Select value={dataset} onChange={(_, d) => setDataset(d.value)}>
-            <option value="">Все ({all.length})</option>
-            {datasets.map((n) => (
-              <option key={n} value={n}>
-                {n} ({datasetCount(n)})
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Язык">
-          <Select value={language} onChange={(_, d) => setLanguage(d.value)}>
-            <option value="">Все</option>
-            {languages.map((l) => (
-              <option key={l}>{l}</option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Канал">
-          <Select value={channel} onChange={(_, d) => setChannel(d.value)}>
-            <option value="">Все</option>
-            {channels.map((c) => (
-              <option key={c} value={c}>
-                {channelLabel(c)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Сортировка">
-          <Select value={sort} onChange={(_, d) => setSort(d.value as SortKey)}>
-            <option value="order">По порядку</option>
-            <option value="score">Сначала низкий балл</option>
-          </Select>
-        </Field>
-        <span className={s.grow} />
-        <Button icon={<CloudArrowDownRegular />} onClick={() => setImportOpen(true)} disabled={busy}>
-          Импорт из API
-        </Button>
-        <Button
-          as="a"
-          icon={<ArrowDownloadRegular />}
-          href={api.exportUrl("csv", rows.length === all.length ? undefined : rows.map((r) => r.conversation_id))}
-          download
-          title="Последняя оценка каждого диалога из списка (с учётом фильтров)"
-        >
-          CSV
-        </Button>
-        <Button
-          as="a"
-          icon={<ArrowDownloadRegular />}
-          href={api.exportUrl("json", rows.length === all.length ? undefined : rows.map((r) => r.conversation_id))}
-          download
-          title="Полные результаты в JSON (с учётом фильтров)"
-        >
-          JSON
-        </Button>
-        <Button icon={<ArrowUploadRegular />} onClick={() => fileInput.current?.click()} disabled={busy}>
-          Загрузить JSON
-        </Button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept="application/json,.json"
-          hidden
-          onChange={(e) => e.target.files?.[0] && runUpload(e.target.files[0])}
+        <Input
+          className={s.search}
+          size="small"
+          contentBefore={<SearchRegular />}
+          value={search}
+          onChange={(_, d) => setSearch(d.value)}
+          placeholder="Поиск по ID или тексту"
+          aria-label="Поиск по ID или тексту"
         />
+        <Select size="small" value={dataset} onChange={(_, d) => setDataset(d.value)} aria-label="Набор">
+          <option value="">Все наборы ({all.length})</option>
+          {datasets.map((n) => (
+            <option key={n} value={n}>
+              {n} ({datasetCount(n)})
+            </option>
+          ))}
+        </Select>
+        <Select size="small" value={language} onChange={(_, d) => setLanguage(d.value)} aria-label="Язык">
+          <option value="">Все языки</option>
+          {languages.map((l) => (
+            <option key={l}>{l}</option>
+          ))}
+        </Select>
+        <Select size="small" value={channel} onChange={(_, d) => setChannel(d.value)} aria-label="Канал">
+          <option value="">Чаты и звонки</option>
+          {channels.map((c) => (
+            <option key={c} value={c}>
+              {channelLabel(c)}
+            </option>
+          ))}
+        </Select>
+        <Select size="small" value={sort} onChange={(_, d) => setSort(d.value as SortKey)} aria-label="Сортировка">
+          <option value="order">По порядку</option>
+          <option value="score">Сначала низкий балл</option>
+        </Select>
+        <span className={s.grow} />
+        <div className={s.quiet}>
+          <Button size="small" appearance="subtle" icon={<CloudArrowDownRegular />} onClick={() => setImportOpen(true)} disabled={busy}>
+            Импорт из API
+          </Button>
+          <Button size="small" appearance="subtle" icon={<ArrowUploadRegular />} onClick={() => fileInput.current?.click()} disabled={busy}>
+            Загрузить JSON
+          </Button>
+          <Button
+            size="small"
+            appearance="subtle"
+            as="a"
+            icon={<ArrowDownloadRegular />}
+            href={api.exportUrl("csv", filtered ? rows.map((r) => r.conversation_id) : undefined)}
+            download
+            title="Последняя оценка каждого диалога из списка (с учётом фильтров)"
+          >
+            CSV
+          </Button>
+          <Button
+            size="small"
+            appearance="subtle"
+            as="a"
+            icon={<ArrowDownloadRegular />}
+            href={api.exportUrl("json", filtered ? rows.map((r) => r.conversation_id) : undefined)}
+            download
+            title="Полные результаты в JSON (с учётом фильтров)"
+          >
+            JSON
+          </Button>
+        </div>
+        <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={(e) => e.target.files?.[0] && runUpload(e.target.files[0])} />
         <Button
           appearance="primary"
-          icon={<TaskListLtrRegular />}
+          size="small"
           disabled={batch.running || !rows.length || !provider?.available}
-          onClick={() =>
-            batch.start({ dialog_ids: rows.map((r) => r.conversation_id), provider: provider?.id })
-          }
+          onClick={() => batch.start({ dialog_ids: rows.map((r) => r.conversation_id), provider: provider?.id })}
         >
-          {batch.running ? "Оценка…" : rows.length === all.length ? "Оценить все" : `Оценить выбранные (${rows.length})`}
+          {batch.running ? "Идёт оценка…" : filtered ? `Оценить выбранные (${rows.length})` : "Оценить все"}
         </Button>
       </div>
 
@@ -261,7 +316,7 @@ export function DialogsScreen() {
           <MessageBarBody>
             {stale.length} из {rows.length} диалогов в списке не оценены моделью «{provider?.name}» — в CSV/JSON попадёт их последняя
             оценка другой модели или пустая строка: {stale.slice(0, 5).map((d) => d.conversation_id).join(", ")}
-            {stale.length > 5 ? "…" : ""}. Переоцените их перед выгрузкой.
+            {stale.length > 5 ? "…" : "."} Переоцените их перед выгрузкой.
           </MessageBarBody>
         </MessageBar>
       ) : null}
@@ -272,44 +327,49 @@ export function DialogsScreen() {
       ) : null}
       {dialogs.error ? (
         <MessageBar intent="error">
-          <MessageBarBody>Не удалось загрузить диалоги: {(dialogs.error as Error).message}</MessageBarBody>
+          <MessageBarBody>Список диалогов не загрузился: {(dialogs.error as Error).message}. Проверьте, что сервер запущен, и обновите страницу.</MessageBarBody>
         </MessageBar>
       ) : null}
 
-      <div className={s.tableWrap}>
+      <div className={s.journal}>
         {dialogs.isLoading ? (
           <div className={s.empty}>
-            <Spinner label="Загрузка диалогов…" />
+            <Spinner size="small" label="Загружаем диалоги…" />
           </div>
         ) : !all.length ? (
           <div className={s.empty}>
-            <Text weight="semibold">Диалогов пока нет</Text>
-            <Text>Импортируйте набор из API организаторов (group_id = DEV) или загрузите JSON.</Text>
-            <Button icon={<CloudArrowDownRegular />} onClick={() => setImportOpen(true)}>
-              Импорт из API
+            <p className={s.emptyText}>
+              Диалогов пока нет. Загрузите набор из API организаторов (group_id = DEV) или JSON-файл в том же формате.
+            </p>
+            <Button appearance="primary" size="small" onClick={() => setImportOpen(true)}>
+              Импортировать набор
+            </Button>
+          </div>
+        ) : !rows.length ? (
+          <div className={s.empty}>
+            <p className={s.emptyText}>Под фильтры не подошёл ни один диалог. Сбросьте поиск или выберите другой набор, язык или канал.</p>
+            <Button size="small" onClick={resetFilters}>
+              Сбросить фильтры
             </Button>
           </div>
         ) : (
-          <Table size="small" aria-label="Диалоги" style={{ minWidth: 900 }}>
-            <TableHeader>
-              <TableRow>
-                <TableHeaderCell style={{ width: 130 }}>ID</TableHeaderCell>
-                <TableHeaderCell style={{ width: 96 }}>Канал</TableHeaderCell>
-                <TableHeaderCell style={{ width: 64 }}>Язык</TableHeaderCell>
-                <TableHeaderCell style={{ width: 72 }}>Реплик</TableHeaderCell>
-                <TableHeaderCell>Превью</TableHeaderCell>
-                <TableHeaderCell style={{ width: 72 }}>Итог</TableHeaderCell>
-                <TableHeaderCell style={{ width: 230 }}>Статус</TableHeaderCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <table className={s.table}>
+            <thead>
+              <tr>
+                <th className={s.th}>Диалог</th>
+                <th className={s.th}>Канал</th>
+                <th className={s.th}>Ход диалога</th>
+                <th className={s.th}>Итог</th>
+                <th className={s.th}>Отметки</th>
+              </tr>
+            </thead>
+            <tbody>
               {rows.map((d) => (
-                <DialogRow key={d.conversation_id} d={d} />
+                <DialogRow key={d.conversation_id} d={d} score={strips.data?.get(d.conversation_id) ?? null} loading={strips.isLoading} />
               ))}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         )}
-        {all.length > 0 && !rows.length ? <Text block style={{ padding: 16 }}>Ничего не найдено по фильтрам.</Text> : null}
       </div>
 
       <Dialog open={importOpen} onOpenChange={(_, d) => setImportOpen(d.open)}>
@@ -334,55 +394,42 @@ export function DialogsScreen() {
   );
 }
 
-function DialogRow({ d }: { d: DialogListItem }) {
+function DialogRow({ d, score, loading }: { d: DialogListItem; score: ScoreResponse | null; loading: boolean }) {
   const s = useStyles();
   const sc = d.last_score;
   const open = () => navigate({ name: "dialog", id: d.conversation_id });
   return (
-    <TableRow className={s.row} onClick={open}>
-      <TableCell>
-        <Link href={href({ name: "dialog", id: d.conversation_id })} onClick={(e) => e.stopPropagation()}>
+    <tr className={s.tr} onClick={open}>
+      <td className={mergeClasses(s.td, s.tdMain)}>
+        <Link className={s.id} href={href({ name: "dialog", id: d.conversation_id })} onClick={(e) => e.stopPropagation()} aria-label={`Открыть диалог ${d.conversation_id}`}>
           {d.conversation_id}
         </Link>
-        {d.dataset && d.dataset !== "DEV" ? <Caption1 className={s.muted}> · {d.dataset}</Caption1> : null}
-      </TableCell>
-      <TableCell>
-        {channelLabel(d.channel)}
-        {d.has_audio ? " 🎧" : ""}
-      </TableCell>
-      <TableCell>{d.language}</TableCell>
-      <TableCell className={s.num}>{d.turns}</TableCell>
-      <TableCell>
+        {d.dataset && d.dataset !== "DEV" ? <span className={s.muted}> · {d.dataset}</span> : null}
         <span className={s.preview} title={d.preview}>
           {d.preview}
         </span>
-      </TableCell>
-      <TableCell>{sc ? <ScoreBadge score={sc.total} /> : <Caption1 className={s.muted}>—</Caption1>}</TableCell>
-      <TableCell>
-        <div className={s.status}>
-          {!sc ? (
-            <Badge appearance="outline" color="subtle">
-              Не оценён
-            </Badge>
-          ) : null}
-          {sc?.gross_error ? <Badge color="danger">Грубая ошибка</Badge> : null}
-          {sc?.needs_review ? (
-            <Badge color="warning" appearance="tint">
-              Нужна проверка
-            </Badge>
-          ) : null}
-          {sc?.open_appeals ? (
-            <Badge color="important" appearance="tint">
-              Апелляций: {sc.open_appeals}
-            </Badge>
-          ) : null}
-          {sc && sc.total !== sc.original_total ? (
-            <Badge color="brand" appearance="tint">
-              Пересмотрено
-            </Badge>
-          ) : null}
-        </div>
-      </TableCell>
-    </TableRow>
+      </td>
+      <td className={mergeClasses(s.td, s.tdChan)}>
+        <span className={s.chan}>
+          {channelLabel(d.channel)}
+          {d.has_audio ? <MicRegular aria-label="есть запись" /> : null}
+        </span>
+        <span className={s.muted}> {d.language} · {d.turns} реплик</span>
+      </td>
+      <td className={mergeClasses(s.td, s.tdStrip)}>
+        {sc ? <MiniStrip marks={miniMarks(score, d.turns)} empty={loading ? "События загружаются" : "Событий нет"} /> : null}
+      </td>
+      <td className={mergeClasses(s.td, s.tdScore)}>{sc ? <ScoreBadge score={sc.total} /> : <span className={s.muted}>не оценён</span>}</td>
+      <td className={mergeClasses(s.td, s.tdTags)}>
+        {sc && (sc.gross_error || sc.needs_review || sc.open_appeals || sc.total !== sc.original_total) ? (
+          <div className={s.tags}>
+            {sc.gross_error ? <ToneBadge tone="danger">Грубое нарушение</ToneBadge> : null}
+            {sc.needs_review ? <ToneBadge tone="warning">Проверить</ToneBadge> : null}
+            {sc.open_appeals ? <ToneBadge tone="informative">Апелляций: {sc.open_appeals}</ToneBadge> : null}
+            {sc.total !== sc.original_total ? <ToneBadge tone="subtle">Пересмотрено</ToneBadge> : null}
+          </div>
+        ) : null}
+      </td>
+    </tr>
   );
 }

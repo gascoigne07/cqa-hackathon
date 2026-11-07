@@ -3,9 +3,9 @@ import { PauseRegular, PlayRegular } from "@fluentui/react-icons";
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
 import { formatSeconds } from "../lib/format";
-import { freedomBrand } from "../theme";
+import { palette } from "../theme";
 
-const WAVE_COLORS = { waveColor: freedomBrand[130], progressColor: freedomBrand[80], cursorColor: freedomBrand[60] };
+const WAVE_COLORS = { waveColor: palette.grid, progressColor: palette.graphite, cursorColor: palette.ink };
 
 export interface AudioPlayerHandle {
   seek: (seconds: number, play?: boolean) => void;
@@ -111,8 +111,7 @@ export const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(function AudioPl
         </Caption1>
       </div>
       <Caption1 className={s.hint}>
-        Нажмите на реплику или цитату-доказательство — запись перемотается к этому месту. Во время воспроизведения
-        текущая реплика подсвечивается. Позиция приблизительная: вычтены паузы записи во время удержания.
+        Перетаскивание по ленте и клик по реплике перематывают запись. Паузы записи во время удержания вычтены.
       </Caption1>
     </div>
   );

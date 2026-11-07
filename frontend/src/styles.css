@@ -1,5 +1,4 @@
-/* Only resets here — all component styling uses Fluent tokens, so the UI
-   inherits the Dynamics 365 look when embedded. */
+/* Resets only. Colours, fonts and radii come from src/theme.ts (Fluent theme + CSS variables). */
 *,
 *::before,
 *::after {
@@ -12,6 +11,21 @@ body,
   min-height: 100%;
 }
 body {
-  font-family: "Segoe UI", "Segoe UI Web (West European)", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  font-family: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #e3e8e1;
+  color: #14201c;
   -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Respect reduced motion everywhere (the strip sweep is the only unprompted animation). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

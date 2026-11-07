@@ -1,5 +1,4 @@
 import {
-  Badge,
   Caption1,
   Card,
   Link,
@@ -10,22 +9,16 @@ import {
   TableHeaderCell,
   TableRow,
   Text,
-  Title3,
   makeStyles,
   mergeClasses,
   tokens,
 } from "@fluentui/react-components";
-import {
-  BookOpenRegular,
-  CheckmarkCircleRegular,
-  InfoRegular,
-  ShieldErrorRegular,
-  TargetArrowRegular,
-} from "@fluentui/react-icons";
-import { useMemo, type ReactNode } from "react";
+import { InfoRegular } from "@fluentui/react-icons";
+import { useMemo } from "react";
+import { ToneBadge } from "../components/ScoreBadge";
 import calib from "../data/calibration.json";
 import { href } from "../router";
-import { BRAND_GREEN, BRAND_TEXT, freedomBrand } from "../theme";
+import { derived, palette, radius, type } from "../theme";
 
 /* ------------------------------------------------------------------ */
 /* Data: frontend/src/data/calibration.json                            */
@@ -77,15 +70,22 @@ const BAND_LABEL: Record<Band, string> = {
   far: `|Δ| > ${FAR} — расхождение`,
 };
 
-/** One colour per band — used for the dots, both legends and the Δ numbers. */
+/** One colour per band. A divergence is not a violation, so no orange here:
+    close = norm, noticeable = attention, large = ink. */
 const BAND_COLOR: Record<Band, string> = {
-  close: BRAND_TEXT,
-  mid: tokens.colorPaletteMarigoldForeground2,
-  far: tokens.colorPaletteRedForeground1,
+  close: palette.norm,
+  mid: palette.attention,
+  far: palette.ink,
+};
+/** Same bands as text (Δ numbers) — darker tones that keep 4.5:1 on panels. */
+const BAND_TEXT: Record<Band, string> = {
+  close: derived.normText,
+  mid: derived.attentionText,
+  far: palette.ink,
 };
 
 /** Calibration figures keep two decimals: columns line up and nothing is hidden by rounding. */
-const num2 = (n: number) => n.toFixed(2);
+const num2 = (n: number) => n.toFixed(2).replace(".", ",");
 const percent = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
 const isCallChannel = (channel?: string) => channel === "call" || (channel ?? "").startsWith("voice");
 
@@ -109,24 +109,48 @@ function parseRatio(text: string): { matched: number; total: number } {
 /* ------------------------------------------------------------------ */
 
 const PHONE = "@media (max-width: 600px)";
+const PHONE_Q = PHONE;
 
 const useStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", gap: "16px" },
   muted: { color: tokens.colorNeutralForeground3 },
   num: { fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" },
 
-  stats: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "12px" },
-  stat: { padding: "14px 16px", gap: "6px", borderTop: `3px solid ${BRAND_GREEN}` },
-  statHead: { display: "flex", alignItems: "center", gap: "6px", color: tokens.colorNeutralForeground3 },
-  statIcon: { color: BRAND_TEXT, fontSize: "18px", display: "inline-flex" },
-  statValue: {
-    fontSize: tokens.fontSizeHero800,
-    lineHeight: tokens.lineHeightHero800,
-    fontWeight: tokens.fontWeightSemibold,
-    fontVariantNumeric: "tabular-nums",
-    color: tokens.colorNeutralForeground1,
+  h1: { margin: "0 0 4px", fontSize: type.xl, fontWeight: 600, lineHeight: "1.15", color: palette.ink },
+  h2: { margin: 0, fontSize: type.md, fontWeight: 600, color: palette.ink },
+
+  /* one lead figure (MAE), the rest quieter beside it */
+  stats: {
+    display: "grid",
+    gridTemplateColumns: "minmax(240px, 1.3fr) repeat(3, minmax(0, 1fr))",
+    backgroundColor: derived.raised,
+    border: `1px solid ${palette.grid}`,
+    borderRadius: radius.panel,
+    "@media (max-width: 1000px)": { gridTemplateColumns: "repeat(3, minmax(0, 1fr))" },
+    [PHONE_Q]: { gridTemplateColumns: "minmax(0, 1fr)" },
   },
-  statUnit: { fontSize: tokens.fontSizeBase400, fontWeight: tokens.fontWeightRegular, color: tokens.colorNeutralForeground3 },
+  lead: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    padding: "16px 18px",
+    borderRight: `1px solid ${palette.grid}`,
+    "@media (max-width: 1000px)": { gridColumn: "1 / -1", borderRight: "none", borderBottom: `1px solid ${palette.grid}` },
+  },
+  leadValue: { fontSize: "44px", lineHeight: "1", fontWeight: 600, color: palette.ink, fontVariantNumeric: "tabular-nums" },
+  stat: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "3px",
+    padding: "16px 18px",
+    borderRight: `1px solid ${palette.grid}`,
+    ":last-child": { borderRight: "none" },
+    [PHONE_Q]: { borderRight: "none", borderBottom: `1px solid ${palette.grid}`, ":last-child": { borderBottom: "none" } },
+  },
+  statLabel: { fontSize: type.xs, color: derived.graphiteStrong },
+  statValue: { fontSize: type.lg, lineHeight: "1.2", fontWeight: 600, fontVariantNumeric: "tabular-nums", color: palette.ink },
+  statUnit: { fontSize: type.sm, fontWeight: 400, color: derived.graphiteStrong },
+  statHint: { fontSize: type.xs, color: derived.graphiteStrong, lineHeight: "1.4" },
 
   columns: {
     display: "grid",
@@ -139,7 +163,7 @@ const useStyles = makeStyles({
 
   legend: { display: "flex", gap: "6px 14px", flexWrap: "wrap", alignItems: "center" },
   legendItem: { display: "inline-flex", alignItems: "center", gap: "6px" },
-  swatch: { width: "12px", height: "12px", borderRadius: "3px", flexShrink: 0 },
+  swatch: { width: "10px", height: "10px", borderRadius: radius.control, flexShrink: 0 },
 
   // Grows to the height of the neighbouring chart and spreads the rows evenly.
   bars: { display: "flex", flexDirection: "column", gap: "16px", flexGrow: 1, justifyContent: "space-evenly" },
@@ -158,12 +182,12 @@ const useStyles = makeStyles({
     position: "relative",
     flexGrow: 1,
     minWidth: "60px",
-    height: "14px",
-    borderRadius: "7px",
-    backgroundColor: tokens.colorNeutralBackground3,
+    height: "10px",
+    borderRadius: radius.strip,
+    backgroundColor: derived.sunken,
     overflow: "hidden",
   },
-  trackThin: { height: "8px", borderRadius: "4px" },
+  trackThin: { height: "5px" },
   fill: { position: "absolute", left: 0, top: 0, bottom: 0, borderRadius: "inherit" },
   barValue: { minWidth: "44px", textAlign: "right", fontVariantNumeric: "tabular-nums" },
 
@@ -177,25 +201,22 @@ const useStyles = makeStyles({
   // Phone: halve Fluent's 8px cell padding so all five columns fit on a 390px screen.
   cell: { [PHONE]: { paddingLeft: "4px", paddingRight: "4px" } },
   colNum: { width: "110px", [PHONE]: { width: "auto" } },
-  close: { backgroundColor: tokens.colorPaletteGreenBackground1 },
-  mid: { backgroundColor: tokens.colorPaletteYellowBackground1 },
-  far: { backgroundColor: tokens.colorPaletteRedBackground1 },
   idCell: { display: "inline-flex", alignItems: "center", gap: "4px 8px", flexWrap: "wrap" },
   nowrap: { whiteSpace: "nowrap" },
   right: { textAlign: "right" },
   headRight: { "& > *": { justifyContent: "flex-end", width: "100%" } },
-  delta: { fontVariantNumeric: "tabular-nums", fontWeight: tokens.fontWeightSemibold, whiteSpace: "nowrap" },
+  delta: { display: "inline-flex", alignItems: "center", gap: "6px", fontVariantNumeric: "tabular-nums", fontWeight: 600, whiteSpace: "nowrap" },
+  deltaDot: { width: "7px", height: "7px", borderRadius: "50%", flexShrink: 0 },
 
   note: {
     display: "flex",
     gap: "10px",
     alignItems: "flex-start",
-    padding: "12px 16px",
-    borderRadius: tokens.borderRadiusLarge,
-    backgroundColor: tokens.colorBrandBackground2,
-    borderLeft: `4px solid ${BRAND_GREEN}`,
+    padding: "4px 0 4px 14px",
+    borderLeft: `2px solid ${palette.ink}`,
+    maxWidth: "90ch",
   },
-  noteIcon: { color: BRAND_TEXT, fontSize: "20px", flexShrink: 0, marginTop: "1px" },
+  noteIcon: { color: derived.graphiteStrong, fontSize: "18px", flexShrink: 0, marginTop: "2px" },
   empty: { padding: "8px 0" },
 });
 
@@ -203,20 +224,17 @@ const useStyles = makeStyles({
 /* Cards                                                               */
 /* ------------------------------------------------------------------ */
 
-function Stat({ icon, label, value, unit, hint }: { icon: ReactNode; label: string; value: string; unit?: string; hint: string }) {
+function Stat({ label, value, unit, hint }: { label: string; value: string; unit?: string; hint: string }) {
   const s = useStyles();
   return (
-    <Card className={s.stat}>
-      <div className={s.statHead}>
-        <span className={s.statIcon}>{icon}</span>
-        <Caption1>{label}</Caption1>
-      </div>
-      <div className={s.statValue}>
+    <div className={s.stat}>
+      <span className={s.statLabel}>{label}</span>
+      <span className={s.statValue}>
         {value}
         {unit ? <span className={s.statUnit}> {unit}</span> : null}
-      </div>
-      <Caption1 className={s.muted}>{hint}</Caption1>
-    </Card>
+      </span>
+      <span className={s.statHint}>{hint}</span>
+    </div>
   );
 }
 
@@ -224,8 +242,8 @@ function Stat({ icon, label, value, unit, hint }: { icon: ReactNode; label: stri
 /* Agreement by criterion — plain div bars                             */
 /* ------------------------------------------------------------------ */
 
-const EXACT_COLOR = freedomBrand[70];
-const STEP_COLOR = freedomBrand[110];
+const EXACT_COLOR = palette.norm;
+const STEP_COLOR = derived.normSoft;
 
 function Bar({ value, color, label, thin }: { value: number; color: string; label: string; thin?: boolean }) {
   const s = useStyles();
@@ -249,9 +267,7 @@ function CriteriaBars({ criteria }: { criteria: CriterionAgreement[] }) {
   return (
     <Card className={s.section}>
       <div className={s.sectionHead}>
-        <Text weight="semibold" size={400}>
-          Совпадение с эталоном по критериям
-        </Text>
+        <h2 className={s.h2}>Совпадение с эталоном по критериям</h2>
         <div className={s.legend}>
           <span className={s.legendItem}>
             <span className={s.swatch} style={{ backgroundColor: EXACT_COLOR }} />
@@ -270,7 +286,7 @@ function CriteriaBars({ criteria }: { criteria: CriterionAgreement[] }) {
           {criteria.map((c) => (
             <div key={c.id} className={s.barRow}>
               <div className={s.barLabel}>
-                <Caption1 className={s.barId}>{c.id.replace(/^c/i, "")}</Caption1>
+                <Caption1 className={s.barId}>{Number(c.id.replace(/^c/i, "")) || c.id}</Caption1>
                 <Text size={300} truncate wrap={false} title={c.name}>
                   {c.name}
                 </Text>
@@ -400,17 +416,15 @@ function Scatter({ dialogs }: { dialogs: DialogComparison[] }) {
   return (
     <Card className={s.section}>
       <div className={s.sectionHead}>
-        <Text weight="semibold" size={400}>
-          ИИ против человека
-        </Text>
+        <h2 className={s.h2}>ИИ против человека</h2>
         <Caption1 className={s.muted}>точка — итог одного диалога</Caption1>
       </div>
       <div className={s.scatterBox}>
         <svg className={s.scatter} viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label="Итог человека (ось X) против итога ИИ (ось Y) по каждому диалогу">
           {ticks.map((t) => (
             <g key={t}>
-              <line x1={sx(t)} y1={sy(0)} x2={sx(t)} y2={sy(100)} stroke={tokens.colorNeutralStroke3} strokeWidth={1} />
-              <line x1={sx(0)} y1={sy(t)} x2={sx(100)} y2={sy(t)} stroke={tokens.colorNeutralStroke3} strokeWidth={1} />
+              <line x1={sx(t)} y1={sy(0)} x2={sx(t)} y2={sy(100)} stroke={palette.grid} strokeWidth={1} />
+              <line x1={sx(0)} y1={sy(t)} x2={sx(100)} y2={sy(t)} stroke={palette.grid} strokeWidth={1} />
               <text x={sx(t)} y={SIZE - PAD + 16} fontSize={10} textAnchor="middle" fill={tokens.colorNeutralForeground3}>
                 {t}
               </text>
@@ -419,10 +433,10 @@ function Scatter({ dialogs }: { dialogs: DialogComparison[] }) {
               </text>
             </g>
           ))}
-          <polygon points={band} fill={freedomBrand[150]} />
-          <line x1={sx(0)} y1={sy(0)} x2={sx(100)} y2={sy(100)} stroke={freedomBrand[80]} strokeWidth={1.5} strokeDasharray="4 3" />
+          <polygon points={band} fill={derived.normTint} />
+          <line x1={sx(0)} y1={sy(0)} x2={sx(100)} y2={sy(100)} stroke={palette.ink} strokeWidth={1} strokeDasharray="4 3" />
           {points.map((p) => (
-            <circle key={p.key} cx={p.cx} cy={p.cy} r={p.r} fill={BAND_COLOR[p.band]} fillOpacity={0.88} stroke="#ffffff" strokeWidth={1}>
+            <circle key={p.key} cx={p.cx} cy={p.cy} r={p.r} fill={BAND_COLOR[p.band]} stroke={derived.raised} strokeWidth={1.5}>
               <title>{`${p.ids.join(", ")} — человек ${num2(p.human)}, ИИ ${num2(p.ai)}`}</title>
             </circle>
           ))}
@@ -451,7 +465,7 @@ function Scatter({ dialogs }: { dialogs: DialogComparison[] }) {
       </div>
       <div className={s.legend}>
         <span className={s.legendItem}>
-          <span className={s.swatch} style={{ backgroundColor: freedomBrand[150], border: `1px solid ${freedomBrand[120]}` }} />
+          <span className={s.swatch} style={{ backgroundColor: derived.normTint, border: `1px solid ${palette.norm}` }} />
           <Caption1>зона ±{CLOSE}</Caption1>
         </span>
         {BANDS.map((b) => (
@@ -482,9 +496,7 @@ function DialogsTable({ dialogs }: { dialogs: DialogComparison[] }) {
   return (
     <Card className={s.section}>
       <div className={s.sectionHead}>
-        <Text weight="semibold" size={400}>
-          ИИ и человек по каждому диалогу
-        </Text>
+        <h2 className={s.h2}>ИИ и человек по каждому диалогу</h2>
         <div className={s.legend}>
           {BANDS.map((b) => (
             <span key={b} className={s.legendItem}>
@@ -515,24 +527,21 @@ function DialogsTable({ dialogs }: { dialogs: DialogComparison[] }) {
                 const b = bandOf(abs);
                 const sign = d.delta > 0 ? "+" : d.delta < 0 ? "−" : "";
                 return (
-                  <TableRow key={d.id} className={s[b]} data-band={b}>
+                  <TableRow key={d.id} data-band={b}>
                     <TableCell className={s.cell}>
                       <span className={s.idCell}>
                         <Link className={s.nowrap} href={href({ name: "dialog", id: d.id })}>
                           {d.id}
                         </Link>
-                        {isCallChannel(d.channel) ? (
-                          <Badge appearance="outline" color="informative" shape="rounded" size="small">
-                            звонок
-                          </Badge>
-                        ) : null}
+                        {isCallChannel(d.channel) ? <ToneBadge tone="subtle">звонок</ToneBadge> : null}
                       </span>
                     </TableCell>
                     <TableCell className={s.cell}>{d.lang}</TableCell>
                     <TableCell className={mergeClasses(s.cell, s.right, s.num)}>{num2(d.human)}</TableCell>
                     <TableCell className={mergeClasses(s.cell, s.right, s.num)}>{num2(d.ai)}</TableCell>
                     <TableCell className={mergeClasses(s.cell, s.right)}>
-                      <span className={s.delta} style={{ color: BAND_COLOR[b] }}>
+                      <span className={s.delta} style={{ color: BAND_TEXT[b] }}>
+                        <span className={s.deltaDot} style={{ backgroundColor: BAND_COLOR[b] }} aria-hidden />
                         {sign}
                         {num2(abs)}
                       </span>
@@ -569,36 +578,34 @@ export function AccuracyScreen() {
   return (
     <div className={s.root}>
       <div>
-        <Title3>Точность</Title3>
+        <h1 className={s.h1}>Точность</h1>
         <Caption1 className={s.muted} block>
           Насколько итоговые оценки ИИ совпадают с эталоном, размеченным по чек-листу · модель: {data.model}
         </Caption1>
       </div>
 
       <div className={s.stats}>
+        <div className={s.lead}>
+          <span className={s.statLabel}>Средняя ошибка итога (MAE)</span>
+          <span className={s.leadValue}>
+            {String(data.mae).replace(".", ",")}
+            <span className={s.statUnit}> из 100</span>
+          </span>
+          <span className={s.statHint}>на столько баллов в среднем итог ИИ отличается от эталона</span>
+        </div>
         <Stat
-          icon={<TargetArrowRegular />}
-          label="MAE — средняя ошибка итога"
-          value={String(data.mae)}
-          unit="/ 100"
-          hint="на столько баллов в среднем итог ИИ отличается от эталона"
-        />
-        <Stat
-          icon={<CheckmarkCircleRegular />}
           label={`В пределах ±${CLOSE} баллов`}
           value={`${data.within_10}/${data.gold_dialogs}`}
           unit={`(${percent(data.within_10, data.gold_dialogs)}%)`}
           hint="диалогов, где итог ИИ близок к эталону"
         />
         <Stat
-          icon={<ShieldErrorRegular />}
           label="Грубые ошибки"
           value={data.gross_error_match}
           unit={`(${percent(gross.matched, gross.total)}%)`}
           hint={allGrossFound ? "ИИ нашёл все грубые ошибки из эталона" : "совпадение флага грубой ошибки с эталоном"}
         />
         <Stat
-          icon={<BookOpenRegular />}
           label="Эталон"
           value={String(data.gold_dialogs)}
           unit={plural(data.gold_dialogs, ["диалог", "диалога", "диалогов"])}

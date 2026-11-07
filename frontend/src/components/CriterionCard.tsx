@@ -1,7 +1,8 @@
-import { Badge, Body1, Button, Caption1, Card, Link, Text, Tooltip, makeStyles, mergeClasses, shorthands, tokens } from "@fluentui/react-components";
+import { Body1, Button, Caption1, Link, Text, Tooltip, makeStyles, mergeClasses, shorthands, tokens } from "@fluentui/react-components";
 import { GavelRegular, WarningFilled } from "@fluentui/react-icons";
 import type { CriterionResult, Evidence } from "../api/contract";
 import { TYPE_LABEL, formatScore, snapshotLabel, stepMeaning, timeLabel, verdictLabel } from "../lib/format";
+import { derived, eventColor, font, palette, radius, type } from "../theme";
 import { ToneBadge } from "./ScoreBadge";
 
 /** Below this share of agreeing votes a criterion is treated as disputed. */
@@ -64,9 +65,19 @@ function ConfidenceMeter({ value, demo, low }: { value: number; demo: boolean; l
 }
 
 const useStyles = makeStyles({
-  card: { ...shorthands.padding("12px", "14px"), gap: "8px", scrollMarginTop: "84px" },
-  grossCard: { ...shorthands.borderLeft("4px", "solid", tokens.colorPaletteRedBorder2) },
-  reviewCard: { ...shorthands.borderLeft("4px", "solid", tokens.colorPaletteMarigoldBorderActive) },
+  card: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    padding: "14px 16px",
+    backgroundColor: derived.raised,
+    borderRadius: radius.panel,
+    border: `1px solid ${palette.grid}`,
+    borderLeftWidth: "3px",
+    scrollMarginTop: "84px",
+  },
+  grossCard: { borderLeftColor: palette.violation },
+  reviewCard: { borderLeftColor: palette.attention },
   flash: {
     animationName: {
       from: { boxShadow: `0 0 0 3px ${tokens.colorPaletteMarigoldBorderActive}` },
@@ -79,14 +90,14 @@ const useStyles = makeStyles({
   dots: { display: "inline-flex", gap: "3px" },
   dot: { width: "7px", height: "7px", borderRadius: "50%" },
   dotEmpty: { backgroundColor: tokens.colorNeutralStroke2 },
-  dotHigh: { backgroundColor: tokens.colorBrandBackground },
-  dotMid: { backgroundColor: tokens.colorPaletteLightGreenBorderActive },
+  dotHigh: { backgroundColor: palette.norm },
+  dotMid: { backgroundColor: derived.normSoft },
   dotLow: { backgroundColor: tokens.colorPaletteMarigoldBorderActive },
   dotDemo: { backgroundColor: tokens.colorNeutralForeground4 },
   lowText: { color: tokens.colorPaletteMarigoldForeground2, fontWeight: tokens.fontWeightSemibold },
   head: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px" },
   titleBox: { display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 },
-  title: { fontWeight: tokens.fontWeightSemibold },
+  title: { fontWeight: 600, fontSize: type.md, lineHeight: "1.3" },
   muted: { color: tokens.colorNeutralForeground3 },
   badges: { display: "flex", gap: "6px", flexWrap: "wrap", justifyContent: "flex-end", flexShrink: 0 },
   numbers: { display: "flex", gap: "14px", flexWrap: "wrap", color: tokens.colorNeutralForeground2, fontVariantNumeric: "tabular-nums" },
@@ -95,10 +106,10 @@ const useStyles = makeStyles({
     justifyContent: "flex-start",
     textAlign: "left",
     ...shorthands.padding("4px", "8px"),
-    ...shorthands.borderLeft("3px", "solid", tokens.colorPaletteMarigoldBorderActive),
-    backgroundColor: tokens.colorNeutralBackground2,
-    ...shorthands.borderRadius(tokens.borderRadiusMedium),
-    fontWeight: tokens.fontWeightRegular,
+    borderLeft: `3px solid ${palette.grid}`,
+    backgroundColor: palette.paper,
+    borderRadius: radius.control,
+    fontWeight: 400,
   },
   issue: { display: "flex", gap: "6px", alignItems: "center", color: tokens.colorPaletteDarkOrangeForeground1 },
   footer: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" },
@@ -107,9 +118,11 @@ const useStyles = makeStyles({
     flexDirection: "column",
     gap: "2px",
     ...shorthands.padding("6px", "8px"),
-    backgroundColor: tokens.colorNeutralBackground3,
-    ...shorthands.borderRadius(tokens.borderRadiusMedium),
+    backgroundColor: palette.paper,
+    borderRadius: radius.control,
   },
+  quote: { fontFamily: font.doc, fontSize: "15px", lineHeight: "1.5", color: palette.ink },
+  quoteMeta: { fontFamily: font.ui, fontSize: type.xs, color: derived.graphiteStrong, fontVariantNumeric: "tabular-nums", marginRight: "6px" },
 });
 
 interface Props {
@@ -133,12 +146,14 @@ export function CriterionCard({ result: r, name, section, onEvidence, onRange, o
   const range = r.checked_range && r.checked_range.length === 2 ? ([r.checked_range[0], r.checked_range[1]] as [number, number]) : null;
   const max = r.effective_weight;
   const review = reviewState(r, demo);
+  const quoteColor = r.gross_error || v.tone === "danger" ? eventColor.violation.fill : v.tone === "success" ? eventColor.good.fill : eventColor.risk.fill;
   const lowConfidence = review.confidenceKnown && r.confidence! < LOW_CONFIDENCE;
 
   return (
-    <Card
+    <section
       className={mergeClasses(s.card, r.gross_error ? s.grossCard : review.flagged && s.reviewCard, flash && s.flash)}
       id={`criterion-${r.criterion_id}`}
+      aria-label={name}
     >
       <div className={s.head}>
         <div className={s.titleBox}>
@@ -151,30 +166,30 @@ export function CriterionCard({ result: r, name, section, onEvidence, onRange, o
         </div>
         <div className={s.badges}>
           {r.gross_error ? (
-            <Badge appearance="filled" color="danger" shape="rounded">
-              Грубая ошибка
-            </Badge>
+            <ToneBadge tone="danger" appearance="filled">
+              Грубое нарушение
+            </ToneBadge>
           ) : r.gross_error_if ? (
             <Tooltip
               content={r.gross_error_if === "yes" ? "Ответ «Да» = грубая ошибка" : "Ответ «Нет» = грубая ошибка"}
               relationship="description"
             >
-              <Badge appearance="outline" color="danger" shape="rounded">
-                Грубые нарушения
-              </Badge>
+              <span>
+                <ToneBadge tone="subtle">Критерий грубых ошибок</ToneBadge>
+              </span>
             </Tooltip>
           ) : null}
           {review.flagged ? (
             <Tooltip content={`Проверить вручную: ${review.reasons.join("; ")}`} relationship="description">
-              <Badge appearance="filled" color="warning" shape="rounded" icon={<WarningFilled />}>
-                Проверить
-              </Badge>
+              <span>
+                <ToneBadge tone="warning" appearance="filled">
+                  Проверить
+                </ToneBadge>
+              </span>
             </Tooltip>
           ) : null}
           {r.overridden ? (
-            <Badge appearance="tint" color="brand" shape="rounded">
-              Изменено проверяющим
-            </Badge>
+            <ToneBadge tone="informative">Изменено проверяющим</ToneBadge>
           ) : null}
           <ToneBadge tone={v.tone} appearance="filled">
             {v.text}
@@ -212,13 +227,20 @@ export function CriterionCard({ result: r, name, section, onEvidence, onRange, o
       {evidence.length ? (
         <div className={s.evidenceList}>
           {evidence.map((ev, k) => (
-            <Button key={k} appearance="transparent" className={s.evidence} onClick={() => onEvidence(ev.turn_idx)}>
-              <Caption1>
-                <b>
+            <Button
+              key={k}
+              appearance="transparent"
+              className={s.evidence}
+              style={{ borderLeftColor: quoteColor }}
+              onClick={() => onEvidence(ev.turn_idx)}
+              aria-label={`Показать реплику #${ev.turn_idx} в расшифровке`}
+            >
+              <span className={s.quote}>
+                <span className={s.quoteMeta}>
                   #{ev.turn_idx} · {timeLabel(ev.timestamp)}
-                </b>{" "}
+                </span>
                 «{ev.quote}»
-              </Caption1>
+              </span>
             </Button>
           ))}
         </div>
@@ -264,9 +286,9 @@ export function CriterionCard({ result: r, name, section, onEvidence, onRange, o
 
       <div className={s.footer}>
         {appeal?.status === "open" ? (
-          <Badge appearance="tint" color="warning" shape="rounded">
+          <ToneBadge tone="warning">
             Апелляция #{appeal.appeal_id} на рассмотрении
-          </Badge>
+          </ToneBadge>
         ) : (
           <span />
         )}
@@ -276,6 +298,6 @@ export function CriterionCard({ result: r, name, section, onEvidence, onRange, o
           </Button>
         ) : null}
       </div>
-    </Card>
+    </section>
   );
 }

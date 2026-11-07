@@ -1,5 +1,4 @@
 import {
-  Badge,
   Body1,
   Button,
   Caption1,
@@ -18,7 +17,6 @@ import {
   TabList,
   Text,
   Textarea,
-  Title3,
   makeStyles,
   mergeClasses,
   tokens,
@@ -28,12 +26,14 @@ import { useEffect, useState } from "react";
 import { api } from "../api/cqa";
 import type { AppealDetail, CriterionResult, ReviewCreate } from "../api/contract";
 import { ToneBadge } from "../components/ScoreBadge";
+import { font, palette, type } from "../theme";
 import { TranscriptView } from "../components/TranscriptView";
 import { dateTime, formatScore, verdictLabel } from "../lib/format";
 import { href, navigate } from "../router";
 
 const useStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", gap: "12px" },
+  h1: { margin: 0, fontSize: type.xl, fontWeight: 600, lineHeight: "1.15", color: palette.ink },
   grid: {
     display: "grid",
     gridTemplateColumns: "340px minmax(0, 1fr)",
@@ -43,11 +43,12 @@ const useStyles = makeStyles({
   },
   list: { display: "flex", flexDirection: "column", gap: "8px" },
   item: { cursor: "pointer", padding: "10px 12px", gap: "4px" },
-  selected: { outline: `2px solid ${tokens.colorBrandStroke1}` },
+  selected: { outline: `1px solid ${palette.ink}`, boxShadow: `inset 3px 0 0 ${palette.ink}` },
   muted: { color: tokens.colorNeutralForeground3 },
   panel: { display: "flex", flexDirection: "column", gap: "12px", padding: "16px" },
   row: { display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" },
-  comment: { padding: "10px 12px", backgroundColor: tokens.colorPaletteYellowBackground1, borderRadius: tokens.borderRadiusMedium },
+  comment: { display: "flex", flexDirection: "column", gap: "4px", padding: "2px 0 2px 14px", borderLeft: `2px solid ${palette.graphite}` },
+  quote: { fontFamily: font.doc, fontSize: type.md, lineHeight: "1.55", color: palette.ink },
   context: { maxHeight: "360px", overflowY: "auto" },
   form: { display: "flex", flexDirection: "column", gap: "12px", maxWidth: "560px" },
   trail: { display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" },
@@ -64,7 +65,7 @@ export function AppealsScreen({ appealId }: { appealId?: number }) {
 
   return (
     <div className={s.root}>
-      <Title3>Апелляции</Title3>
+      <h1 className={s.h1}>Апелляции</h1>
       <Caption1 className={s.muted}>Вид проверяющего: спорная оценка, комментарий и фрагмент диалога → решение.</Caption1>
       <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as "open" | "resolved")}>
         <Tab value="open">На рассмотрении</Tab>
@@ -94,9 +95,9 @@ export function AppealsScreen({ appealId }: { appealId?: number }) {
                   #{a.appeal_id} · {a.dialog_id}
                 </Text>
                 {a.review ? (
-                  <Badge color={a.review.decision === "change" ? "brand" : "subtle"} appearance="tint">
+                  <ToneBadge tone={a.review.decision === "change" ? "informative" : "subtle"}>
                     {a.review.decision === "change" ? "Изменено" : "Подтверждено"}
-                  </Badge>
+                  </ToneBadge>
                 ) : null}
               </div>
               <Caption1>{a.criterion_name}</Caption1>
@@ -154,7 +155,7 @@ function AppealReview({ id }: { id: number }) {
       ) : null}
       <div className={s.comment}>
         <Caption1>Комментарий апеллянта ({a.author}):</Caption1>
-        <Body1 block>«{a.comment}»</Body1>
+        <Body1 block className={s.quote}>«{a.comment}»</Body1>
       </div>
 
       <Subtitle1>Фрагмент диалога</Subtitle1>
