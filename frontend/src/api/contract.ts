@@ -207,6 +207,16 @@ export interface ScoreResponse {
   run?: RunInfo | null; // ⊕ proof of live analysis
 }
 
+/** ⊕ One row of GET /api/export?format=json: a dialog with its latest full score (null if never scored). */
+export interface ResultRow {
+  conversation_id: string;
+  channel: string;
+  language: string;
+  dataset: string;
+  checklist_name: string | null;
+  score: ScoreResponse | null;
+}
+
 export interface ScoreRequest {
   dialog_id: string;
   checklist_id?: number;

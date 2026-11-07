@@ -13,18 +13,20 @@ import {
   MessageBarBody,
   Select,
   Spinner,
+  Switch,
   makeStyles,
   mergeClasses,
 } from "@fluentui/react-components";
-import { ArrowDownloadRegular, ArrowUploadRegular, CloudArrowDownRegular, MicRegular, SearchRegular } from "@fluentui/react-icons";
+import { ArrowDownloadRegular, ArrowUploadRegular, CloudArrowDownRegular, ErrorCircleFilled, MicRegular, SearchRegular } from "@fluentui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { api } from "../api/cqa";
-import type { DialogListItem, ScoreResponse } from "../api/contract";
+import type { CriterionResult, DialogListItem, ScoreResponse } from "../api/contract";
 import { BatchProgress } from "../components/BatchProgress";
 import { MiniStrip } from "../components/MiniStrip";
 import { ScoreBadge, ToneBadge } from "../components/ScoreBadge";
 import { miniMarks } from "../lib/events";
+import { GROSS_FOCUS, cleanExplanation, primaryGross, useGrossReasons } from "../lib/gross";
 import { channelLabel, formatScore, pickChecklist } from "../lib/format";
 import { useProvider } from "../lib/provider";
 import { useBatchJob } from "../lib/useBatchJob";
@@ -107,6 +109,24 @@ const useStyles = makeStyles({
   muted: { color: derived.graphiteStrong, fontSize: type.xs },
   empty: { padding: "22px 20px", display: "flex", flexDirection: "column", gap: "10px", alignItems: "flex-start" },
   emptyText: { margin: 0, fontSize: type.md, lineHeight: "1.5", maxWidth: "62ch" },
+
+  /* gross errors */
+  grossLink: { color: palette.violationText, cursor: "pointer", textDecorationLine: "underline", ":hover": { color: palette.violation } },
+  grossRow: { backgroundColor: derived.violationTint, ":hover": { backgroundColor: derived.violationTint } },
+  grossMark: { boxShadow: `inset 4px 0 0 ${palette.violation}` },
+  reason: {
+    display: "flex",
+    gap: "6px",
+    alignItems: "flex-start",
+    marginTop: "3px",
+    maxWidth: "420px",
+    color: palette.violationText,
+    fontSize: type.xs,
+    lineHeight: "1.35",
+    [NARROW]: { maxWidth: "100%" },
+  },
+  reasonIcon: { flexShrink: 0, marginTop: "1px", color: palette.violation },
+  reasonText: { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
 });
 
 type SortKey = "order" | "score";
@@ -116,7 +136,7 @@ interface ExportRow {
   score: ScoreResponse | null;
 }
 
-export function DialogsScreen() {
+export function DialogsScreen({ grossOnly = false }: { grossOnly?: boolean }) {
   const s = useStyles();
   const qc = useQueryClient();
   const dialogs = useQuery({ queryKey: ["dialogs"], queryFn: api.dialogs });
@@ -143,6 +163,7 @@ export function DialogsScreen() {
     if (dataset) list = list.filter((d) => (d.dataset ?? "") === dataset);
     if (language) list = list.filter((d) => d.language === language);
     if (channel) list = list.filter((d) => d.channel === channel);
+    if (grossOnly) list = list.filter((d) => d.last_score?.gross_error);
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -151,7 +172,7 @@ export function DialogsScreen() {
     }
     if (sort === "score") list = [...list].sort((a, b) => (a.last_score?.total ?? 999) - (b.last_score?.total ?? 999));
     return list;
-  }, [all, dataset, language, channel, search, sort]);
+  }, [all, dataset, language, channel, grossOnly, search, sort]);
 
   const scored = all.filter((d) => d.last_score);
   const totals = scored.map((d) => d.last_score!.total).filter((t): t is number => t != null);
@@ -180,12 +201,24 @@ export function DialogsScreen() {
     },
   });
 
+  const setGrossOnly = (on: boolean) => navigate({ name: "dialogs", gross: on || undefined }); // URL state: shareable, Back works
+  const reasons = useGrossReasons(all);
+
+  /** After an import show exactly the new set: other filters off, so the button reads «Оценить выбранные (10)». */
+  function showOnlyDataset(name: string) {
+    setDataset(name);
+    setSearch("");
+    setLanguage("");
+    setChannel("");
+    if (grossOnly) setGrossOnly(false);
+  }
+
   async function runImport() {
     setBusy(true);
     try {
       const r = await api.importGroup(groupId.trim());
-      setNotice({ intent: "success", text: `Набор ${r.dataset}: новых ${r.imported}, обновлено ${r.updated}. Фильтр «Набор» переключён на ${r.dataset}.` });
-      setDataset(r.dataset);
+      setNotice({ intent: "success", text: `Набор ${r.dataset}: новых ${r.imported}, обновлено ${r.updated}. Показан только этот набор (остальные фильтры сброшены).` });
+      showOnlyDataset(r.dataset);
       setImportOpen(false);
       await qc.invalidateQueries({ queryKey: ["dialogs"] });
     } catch (e) {
@@ -199,8 +232,8 @@ export function DialogsScreen() {
     setBusy(true);
     try {
       const r = await api.upload(file);
-      setNotice({ intent: "success", text: `Загружено: новых ${r.imported}, обновлено ${r.updated} (набор ${r.dataset}). Фильтр «Набор» переключён на него.` });
-      setDataset(r.dataset);
+      setNotice({ intent: "success", text: `Загружено: новых ${r.imported}, обновлено ${r.updated} (набор ${r.dataset}). Показан только этот набор.` });
+      showOnlyDataset(r.dataset);
       await qc.invalidateQueries({ queryKey: ["dialogs"] });
     } catch (e) {
       setNotice({ intent: "error", text: `Файл не загрузился: ${e instanceof Error ? e.message : String(e)}. Нужен JSON в формате API организаторов.` });
@@ -224,7 +257,15 @@ export function DialogsScreen() {
         <h1 className={s.h1}>Диалоги</h1>
         <p className={s.summary}>
           {dialogs.data ? `${all.length} диалогов` : "—"} · оценено {scored.length} · средний балл{" "}
-          {formatScore(avg == null ? null : Math.round(avg * 10) / 10)} · грубых нарушений {gross} · открытых апелляций {openAppeals}
+          {formatScore(avg == null ? null : Math.round(avg * 10) / 10)} ·{" "}
+          {gross > 0 ? (
+            <Link className={s.grossLink} onClick={() => setGrossOnly(!grossOnly)} title={grossOnly ? "Показать все диалоги" : "Показать только диалоги с грубыми ошибками"}>
+              грубых нарушений {gross}
+            </Link>
+          ) : (
+            <>грубых нарушений {gross}</>
+          )}{" "}
+          · открытых апелляций {openAppeals}
         </p>
         <p className={s.sub}>
           Чаты — {chatChecklist ? `«${chatChecklist.name}» (#${chatChecklist.id})` : "…"} · звонки —{" "}
@@ -268,6 +309,13 @@ export function DialogsScreen() {
           <option value="order">По порядку</option>
           <option value="score">Сначала низкий балл</option>
         </Select>
+        {scored.length > 0 ? (
+          <Switch
+            checked={grossOnly}
+            onChange={(_, d) => setGrossOnly(d.checked)}
+            label={`Только грубые ошибки (${gross})`}
+          />
+        ) : null}
         <span className={s.grow} />
         <div className={s.quiet}>
           <Button size="small" appearance="subtle" icon={<CloudArrowDownRegular />} onClick={() => setImportOpen(true)} disabled={busy}>
@@ -325,6 +373,11 @@ export function DialogsScreen() {
           <MessageBarBody>{notice.text}</MessageBarBody>
         </MessageBar>
       ) : null}
+      {grossOnly && reasons.error ? (
+        <MessageBar intent="warning">
+          <MessageBarBody>Не удалось загрузить причины грубых ошибок: {reasons.error.message}. Откройте диалог — причина в разборе.</MessageBarBody>
+        </MessageBar>
+      ) : null}
       {dialogs.error ? (
         <MessageBar intent="error">
           <MessageBarBody>Список диалогов не загрузился: {(dialogs.error as Error).message}. Проверьте, что сервер запущен, и обновите страницу.</MessageBarBody>
@@ -346,12 +399,21 @@ export function DialogsScreen() {
             </Button>
           </div>
         ) : !rows.length ? (
-          <div className={s.empty}>
-            <p className={s.emptyText}>Под фильтры не подошёл ни один диалог. Сбросьте поиск или выберите другой набор, язык или канал.</p>
-            <Button size="small" onClick={resetFilters}>
-              Сбросить фильтры
-            </Button>
-          </div>
+          grossOnly && !gross ? (
+            <div className={s.empty}>
+              <p className={s.emptyText}>Грубых ошибок нет: ни в одном из {scored.length} оценённых диалогов модель не нашла грубого нарушения.</p>
+              <Button size="small" onClick={() => setGrossOnly(false)}>
+                Показать все диалоги
+              </Button>
+            </div>
+          ) : (
+            <div className={s.empty}>
+              <p className={s.emptyText}>Под фильтры не подошёл ни один диалог. Сбросьте поиск или выберите другой набор, язык или канал.</p>
+              <Button size="small" onClick={resetFilters}>
+                Сбросить фильтры
+              </Button>
+            </div>
+          )
         ) : (
           <table className={s.table}>
             <thead>
@@ -365,7 +427,14 @@ export function DialogsScreen() {
             </thead>
             <tbody>
               {rows.map((d) => (
-                <DialogRow key={d.conversation_id} d={d} score={strips.data?.get(d.conversation_id) ?? null} loading={strips.isLoading} />
+                <DialogRow
+                  key={d.conversation_id}
+                  d={d}
+                  score={strips.data?.get(d.conversation_id) ?? null}
+                  loading={strips.isLoading}
+                  reasons={reasons.byId.get(d.conversation_id)}
+                  reasonsLoading={reasons.isLoading}
+                />
               ))}
             </tbody>
           </table>
@@ -394,20 +463,36 @@ export function DialogsScreen() {
   );
 }
 
-function DialogRow({ d, score, loading }: { d: DialogListItem; score: ScoreResponse | null; loading: boolean }) {
+function DialogRow({
+  d,
+  score,
+  loading,
+  reasons,
+  reasonsLoading,
+}: {
+  d: DialogListItem;
+  score: ScoreResponse | null;
+  loading: boolean;
+  reasons?: CriterionResult[];
+  reasonsLoading: boolean;
+}) {
   const s = useStyles();
   const sc = d.last_score;
-  const open = () => navigate({ name: "dialog", id: d.conversation_id });
+  const gross = !!sc?.gross_error;
+  // a gross-error dialog opens scrolled to the reason (first offending criterion)
+  const target = { name: "dialog" as const, id: d.conversation_id, focus: gross ? primaryGross(reasons)?.criterion_id ?? GROSS_FOCUS : undefined };
+  const open = () => navigate(target);
   return (
-    <tr className={s.tr} onClick={open}>
-      <td className={mergeClasses(s.td, s.tdMain)}>
-        <Link className={s.id} href={href({ name: "dialog", id: d.conversation_id })} onClick={(e) => e.stopPropagation()} aria-label={`Открыть диалог ${d.conversation_id}`}>
+    <tr className={mergeClasses(s.tr, gross && s.grossRow)} onClick={open}>
+      <td className={mergeClasses(s.td, s.tdMain, gross && s.grossMark)}>
+        <Link className={s.id} href={href(target)} onClick={(e) => e.stopPropagation()} aria-label={`Открыть диалог ${d.conversation_id}`}>
           {d.conversation_id}
         </Link>
         {d.dataset && d.dataset !== "DEV" ? <span className={s.muted}> · {d.dataset}</span> : null}
         <span className={s.preview} title={d.preview}>
           {d.preview}
         </span>
+        {gross ? <GrossReason reasons={reasons} loading={reasonsLoading} /> : null}
       </td>
       <td className={mergeClasses(s.td, s.tdChan)}>
         <span className={s.chan}>
@@ -431,5 +516,35 @@ function DialogRow({ d, score, loading }: { d: DialogListItem; score: ScoreRespo
         ) : null}
       </td>
     </tr>
+  );
+}
+
+/** "⛔ критерий: объяснение «цитата»" under the preview of a gross-error row. */
+function GrossReason({ reasons, loading }: { reasons?: CriterionResult[]; loading: boolean }) {
+  const s = useStyles();
+  if (!reasons?.length) {
+    return (
+      <span className={s.reason}>
+        <ErrorCircleFilled className={s.reasonIcon} />
+        <span>{loading ? "Загрузка причины…" : "Причина — в разборе диалога"}</span>
+      </span>
+    );
+  }
+  const text = reasons
+    .map((r) => `${r.name ?? r.criterion_id}: ${cleanExplanation(r.explanation)}${r.evidence?.quote ? ` «${r.evidence.quote}»` : ""}`)
+    .join(" · ");
+  return (
+    <span className={s.reason} title={text}>
+      <ErrorCircleFilled className={s.reasonIcon} />
+      <span className={s.reasonText}>
+        {reasons.map((r, i) => (
+          <span key={r.criterion_id}>
+            {i ? " · " : ""}
+            <b>{r.name ?? r.criterion_id}:</b> {cleanExplanation(r.explanation)}
+            {r.evidence?.quote ? <i> «{r.evidence.quote}»</i> : null}
+          </span>
+        ))}
+      </span>
+    </span>
   );
 }

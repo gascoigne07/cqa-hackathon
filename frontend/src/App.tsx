@@ -1,5 +1,5 @@
 import { Tab, TabList, makeStyles } from "@fluentui/react-components";
-import { ChatMultipleRegular, DataBarHorizontalRegular, GavelRegular, TaskListLtrRegular } from "@fluentui/react-icons";
+import { ChatMultipleRegular, DataBarHorizontalRegular, GavelRegular, GridRegular, TaskListLtrRegular } from "@fluentui/react-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "./api/cqa";
@@ -10,6 +10,7 @@ import { AccuracyScreen } from "./screens/AccuracyScreen";
 import { AppealsScreen } from "./screens/AppealsScreen";
 import { ChecklistScreen } from "./screens/ChecklistScreen";
 import { DialogsScreen } from "./screens/DialogsScreen";
+import { OverviewScreen } from "./screens/OverviewScreen";
 import { ResultScreen } from "./screens/ResultScreen";
 import { derived, palette, type } from "./theme";
 
@@ -44,7 +45,7 @@ const useStyles = makeStyles({
   subTitle: { color: palette.ink },
   subNote: { color: derived.graphiteStrong },
   grow: { flexGrow: 1 },
-  // 4 tabs don't fit on a phone: scroll them sideways instead of widening the page.
+  // 5 tabs don't fit on a phone: scroll them sideways instead of widening the page.
   tabs: { maxWidth: "100%", overflowX: "auto", scrollbarWidth: "none", "::-webkit-scrollbar": { display: "none" } },
   main: {
     padding: "20px",
@@ -87,10 +88,13 @@ function Shell() {
           <div className={s.tabs}>
             <TabList
               selectedValue={tab}
-              onTabSelect={(_, d) => navigate({ name: d.value as "dialogs" | "checklist" | "appeals" | "accuracy" })}
+              onTabSelect={(_, d) => navigate({ name: d.value as "dialogs" | "overview" | "checklist" | "appeals" | "accuracy" })}
             >
               <Tab value="dialogs" icon={<ChatMultipleRegular />}>
                 Диалоги
+              </Tab>
+              <Tab value="overview" icon={<GridRegular />}>
+                Обзор
               </Tab>
               <Tab value="checklist" icon={<TaskListLtrRegular />}>
                 Чек-лист
@@ -108,8 +112,9 @@ function Shell() {
         </header>
       </div>
       <main className={s.main}>
-        {route.name === "dialogs" && <DialogsScreen />}
-        {route.name === "dialog" && <ResultScreen key={route.id} dialogId={route.id} />}
+        {route.name === "dialogs" && <DialogsScreen grossOnly={!!route.gross} />}
+        {route.name === "dialog" && <ResultScreen key={route.id} dialogId={route.id} focus={route.focus} />}
+        {route.name === "overview" && <OverviewScreen />}
         {route.name === "checklist" && <ChecklistScreen />}
         {route.name === "appeals" && <AppealsScreen appealId={route.id} />}
         {route.name === "accuracy" && <AccuracyScreen />}

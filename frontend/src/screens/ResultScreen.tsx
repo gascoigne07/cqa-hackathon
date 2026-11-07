@@ -1,5 +1,5 @@
-import { Button, Link, MessageBar, MessageBarBody, Select, Spinner, makeStyles, mergeClasses } from "@fluentui/react-components";
-import { ArrowLeftRegular, CodeRegular } from "@fluentui/react-icons";
+import { Button, Link, MessageBar, MessageBarBody, MessageBarTitle, Select, Spinner, Text, makeStyles, mergeClasses } from "@fluentui/react-components";
+import { ArrowLeftRegular, CodeRegular, ErrorCircleFilled } from "@fluentui/react-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/cqa";
@@ -12,6 +12,7 @@ import { ScoreMark, ToneBadge } from "../components/ScoreBadge";
 import { TraceDialog } from "../components/TraceDialog";
 import { TranscriptView, type Focus } from "../components/TranscriptView";
 import { buildEvents, clientTension, dialogFacts, turnTimes, type DialogEvent } from "../lib/events";
+import { GROSS_FOCUS, cleanExplanation, grossCriteria, primaryGross } from "../lib/gross";
 import { CHECKLIST_CHANNEL_LABEL, channelLabel, dateTime, formatScore, formatSeconds, isCall, pickChecklist, ratio, verdictLabel } from "../lib/format";
 import { useProvider } from "../lib/provider";
 import { activeTurn, offsets as computeOffsets } from "../lib/timeline";
@@ -38,6 +39,12 @@ const useStyles = makeStyles({
     font: "inherit",
     borderRadius: radius.control,
   },
+
+  /* gross-error banner: the reason is the first thing on screen */
+  grossList: { display: "flex", flexDirection: "column", gap: "8px", marginTop: "6px" },
+  grossItem: { display: "flex", flexDirection: "column", gap: "2px" },
+  grossQuote: { fontStyle: "italic" },
+  grossLinks: { display: "flex", gap: "14px", flexWrap: "wrap" },
 
   /* the strip: the one big element of the screen */
   strip: {
@@ -166,7 +173,7 @@ const LEGEND: EventKind[] = ["violation", "risk", "pause", "good"];
 const fmtDate = (d: Date) =>
   d.toLocaleString("ru-RU", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
-export function ResultScreen({ dialogId }: { dialogId: string }) {
+export function ResultScreen({ dialogId, focus: focusCriterion }: { dialogId: string; focus?: string }) {
   const s = useStyles();
   const qc = useQueryClient();
   const { provider } = useProvider();
@@ -254,6 +261,20 @@ export function ResultScreen({ dialogId }: { dialogId: string }) {
     if (seekAudio && call && offset != null) audio.current?.seek(offset);
   };
 
+  // opened from «Грубые ошибки» (#/dialog/<id>?c=…): highlight the offending criterion and its quote
+  // in the transcript. No page scroll — the red banner with the reason stays on top.
+  const autoFocused = useRef(false);
+  useEffect(() => {
+    if (autoFocused.current || !focusCriterion || !score || !dialog) return;
+    autoFocused.current = true;
+    const target =
+      focusCriterion === GROSS_FOCUS ? primaryGross(score.results) : score.results.find((r) => r.criterion_id === focusCriterion);
+    if (!target) return;
+    setFlashId(target.criterion_id);
+    if (target.evidence) focusTurn(target.evidence.turn_idx);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusCriterion, score, dialog]);
+
   if (dialogQ.isLoading) return <Spinner label="Загружаем диалог…" />;
   if (dialogQ.error || !dialog) {
     return (
@@ -269,6 +290,7 @@ export function ResultScreen({ dialogId }: { dialogId: string }) {
   const busy = runScore.isPending;
   const demo = score?.provider === "mock";
   const flagged = score ? score.results.filter((r) => reviewState(r, demo).flagged) : [];
+  const gross = score ? grossCriteria(score.results) : [];
   const confidenceShown = !!score && !demo && score.results.some((r) => r.confidence != null);
   const facts = dialogFacts(dialog.transcript, axis.duration, axis.timed);
   const kindByCriterion = new Map(events.filter((e) => e.criterionId).map((e) => [e.criterionId!, e.kind]));
@@ -380,6 +402,36 @@ export function ResultScreen({ dialogId }: { dialogId: string }) {
           </Button>
         </div>
       </header>
+
+      {score?.gross_error && !busy ? (
+        <MessageBar intent="error" layout="multiline" icon={<ErrorCircleFilled />}>
+          <MessageBarBody>
+            <MessageBarTitle>Грубая ошибка{gross.length > 1 ? ` · ${gross.length} критерия` : ""}</MessageBarTitle>
+            <div className={s.grossList}>
+              {gross.length ? (
+                gross.map((r) => (
+                  <div key={r.criterion_id} className={s.grossItem}>
+                    <Text>
+                      <b>{nameOf(r)}:</b> {cleanExplanation(r.explanation) || "модель отметила грубое нарушение"}
+                    </Text>
+                    {r.evidence ? (
+                      <Text className={s.grossQuote}>
+                        {r.evidence.timestamp ? `${r.evidence.timestamp} · ` : ""}«{r.evidence.quote}»
+                      </Text>
+                    ) : null}
+                    <div className={s.grossLinks}>
+                      {r.evidence ? <Link onClick={() => focusTurn(r.evidence!.turn_idx)}>Показать в разговоре</Link> : null}
+                      <Link onClick={() => jumpTo(r.criterion_id)}>К критерию</Link>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <Text>Модель отметила грубое нарушение — см. критерии ниже.</Text>
+              )}
+            </div>
+          </MessageBarBody>
+        </MessageBar>
+      ) : null}
 
       {runScore.error ? (
         <MessageBar intent="error">

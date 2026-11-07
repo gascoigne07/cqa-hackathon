@@ -12,6 +12,7 @@ import type {
   DialogOut,
   ImportResult,
   ProviderInfo,
+  ResultRow,
   ReviewCreate,
   ScoreRequest,
   ScoreResponse,
@@ -79,6 +80,8 @@ export const api = {
     }
   },
   trace: (scoreId: number) => transport.get<TraceEntry[]>(`/api/scores/${scoreId}/trace`),
+  /** ⊕ Latest full score of every dialog in one request (the JSON export) — for gross-error reasons and the overview. */
+  results: (ids?: string[]) => transport.get<ResultRow[]>(`/api/export?format=json${ids?.length ? `&ids=${ids.map(enc).join(",")}` : ""}`),
   exportUrl: (format: "csv" | "json", ids?: string[]) =>
     transport.url(`/api/export?format=${format}${ids?.length ? `&ids=${ids.map(enc).join(",")}` : ""}`),
   /** Resolves a backend-relative audio_url to an absolute URL. */
