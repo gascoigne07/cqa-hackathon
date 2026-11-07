@@ -1,23 +1,22 @@
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-venv/
-*.egg-info/
+# secrets / local config
+backend/.env
 
-# Env / secrets
-.env
-*.key
-secrets.*
-
-# DB / data cache
-*.sqlite3
-*.db
-data/cache/
-
-# OS / editor
-.DS_Store
-.idea/
-.vscode/
+# local data (organizers' dataset, database, cached call recordings)
 backend/data/
+!backend/data/.gitkeep
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# node
+frontend/node_modules/
+frontend/dist-webresource/
+*.log
+.DS_Store
+.env
 labeling/
+ml/__pycache__/
+backend/.venv312/

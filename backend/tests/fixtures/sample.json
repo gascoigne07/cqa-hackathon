@@ -1,0 +1,109 @@
+{
+ "error": "",
+ "isSuccess": true,
+ "data": {
+  "dataset_group_id": "DEMO",
+  "total_records": 3,
+  "records": [
+   {
+    "conversation_id": "demo-ru-1",
+    "channel": "agent chat",
+    "language": "RU",
+    "audio_url": null,
+    "transcript": [
+     {
+      "timestamp": "00:00",
+      "speaker": "client",
+      "text": "Как вывести деньги со счёта?"
+     },
+     {
+      "timestamp": "00:02",
+      "speaker": "bot",
+      "text": "Здравствуйте! Я виртуальный помощник. Соединяю с оператором."
+     },
+     {
+      "timestamp": "00:05",
+      "speaker": "system",
+      "text": "Эскалация на оператора."
+     },
+     {
+      "timestamp": "00:40",
+      "speaker": "operator",
+      "text": "Здравствуйте! Меня зовут Дана. Подскажите, пожалуйста, дату рождения для проверки."
+     },
+     {
+      "timestamp": "00:55",
+      "speaker": "client",
+      "text": "01.01.1990"
+     },
+     {
+      "timestamp": "01:10",
+      "speaker": "operator",
+      "text": "Спасибо. Откройте раздел «Кабинет» и выберите «Вывод средств»."
+     },
+     {
+      "timestamp": "01:30",
+      "speaker": "client",
+      "text": "Получилось, спасибо!"
+     },
+     {
+      "timestamp": "01:40",
+      "speaker": "operator",
+      "text": "Остались ли вопросы? Хорошего дня!"
+     }
+    ]
+   },
+   {
+    "conversation_id": "demo-kz-1",
+    "channel": "agent chat",
+    "language": "KZ",
+    "audio_url": null,
+    "transcript": [
+     {
+      "timestamp": "00:00",
+      "speaker": "client",
+      "text": "Тарифті қайдан көремін?"
+     },
+     {
+      "timestamp": "00:30",
+      "speaker": "operator",
+      "text": "Сәлеметсіз бе, менің атым Аружан. Кабинет бөлімін ашыңыз."
+     },
+     {
+      "timestamp": "00:50",
+      "speaker": "client",
+      "text": "Көрдім, рақмет."
+     },
+     {
+      "timestamp": "01:00",
+      "speaker": "operator",
+      "text": "Оқасы жоқ. Сау болыңыз!"
+     }
+    ]
+   },
+   {
+    "conversation_id": "demo-en-1",
+    "channel": "agent chat",
+    "language": "EN",
+    "audio_url": null,
+    "transcript": [
+     {
+      "timestamp": "00:00",
+      "speaker": "client",
+      "text": "My order is stuck."
+     },
+     {
+      "timestamp": "00:20",
+      "speaker": "operator",
+      "text": "Hi. Which order do you mean?"
+     },
+     {
+      "timestamp": "00:40",
+      "speaker": "client",
+      "text": "It still doesn't work."
+     }
+    ]
+   }
+  ]
+ }
+}
