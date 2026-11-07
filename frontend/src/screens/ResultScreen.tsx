@@ -404,7 +404,7 @@ export function ResultScreen({ dialogId, focus: focusCriterion }: { dialogId: st
       </header>
 
       {score?.gross_error && !busy ? (
-        <MessageBar intent="error" layout="multiline" icon={<ErrorCircleFilled />}>
+        <MessageBar intent="error" layout="multiline" icon={<ErrorCircleFilled style={{ color: palette.violationText }} />} style={{ backgroundColor: derived.violationTint, border: `1px solid ${palette.violation}`, borderLeft: `4px solid ${palette.violation}` }}>
           <MessageBarBody>
             <MessageBarTitle>Грубая ошибка{gross.length > 1 ? ` · ${gross.length} критерия` : ""}</MessageBarTitle>
             <div className={s.grossList}>
