@@ -5,6 +5,12 @@ import {
   Caption1,
   Card,
   Checkbox,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
   Field,
   Input,
   MessageBar,
@@ -38,7 +44,7 @@ import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { api } from "../api/cqa";
 import type { Channel, Checklist, ChecklistIn, Criterion, CriterionType, ScaleStep } from "../api/contract";
 import { BatchProgress } from "../components/BatchProgress";
-import { CHECKLIST_CHANNEL_LABEL, TYPE_LABEL, dateTime, formatScore } from "../lib/format";
+import { CHECKLIST_CHANNEL_LABEL, TYPE_LABEL, dateTime, formatScore, isCall } from "../lib/format";
 import { useProvider } from "../lib/provider";
 import { useBatchJob } from "../lib/useBatchJob";
 import { BRAND_GREEN } from "../theme";
@@ -237,6 +243,10 @@ export function ChecklistScreen() {
   const [saving, setSaving] = useState(false);
   const [onlyChanged, setOnlyChanged] = useState(true);
   const batch = useBatchJob();
+  // ⊕ «Применить» asks first: which dataset, how many dialogs — so a click never rescores the whole base by accident.
+  const dialogsQ = useQuery({ queryKey: ["dialogs"], queryFn: api.dialogs });
+  const [applyOpen, setApplyOpen] = useState(false);
+  const [applyDataset, setApplyDataset] = useState("");
 
   useEffect(() => {
     if (viewing.data) {
@@ -253,6 +263,12 @@ export function ChecklistScreen() {
   const viewingChannel = viewing.data?.channel ?? "all";
   // the checklist used for a channel is the newest one with that channel
   const isLatest = list.data?.find((c) => (c.channel ?? "all") === viewingChannel)?.id === currentId;
+  // the saved checklist only applies to dialogs of its channel
+  const channelDialogs = (dialogsQ.data ?? []).filter((d) =>
+    saved?.channel === "call" ? isCall(d.channel) : saved?.channel === "chat" ? !isCall(d.channel) : true,
+  );
+  const applyDatasets = [...new Set(channelDialogs.map((d) => d.dataset ?? "").filter(Boolean))];
+  const applyTargets = applyDataset ? channelDialogs.filter((d) => d.dataset === applyDataset) : channelDialogs;
 
   // sections in order of first appearance, with their colour and weight
   const sections = useMemo(() => {
@@ -645,9 +661,9 @@ export function ChecklistScreen() {
               appearance="primary"
               icon={<TaskListLtrRegular />}
               disabled={batch.running || !provider?.available}
-              onClick={() => batch.start({ provider: provider?.id, reuse_unchanged: onlyChanged })}
+              onClick={() => setApplyOpen(true)}
             >
-              Применить ко всем диалогам
+              Применить к диалогам…
             </Button>
           </>
         ) : null}
@@ -659,6 +675,45 @@ export function ChecklistScreen() {
         >
           {saving ? "Сохранение…" : "Сохранить чек-лист"}
         </Button>
+        <Dialog open={applyOpen} onOpenChange={(_, d) => setApplyOpen(d.open)}>
+          <DialogSurface>
+            <DialogBody>
+              <DialogTitle>Переоценить по чек-листу #{saved?.id}</DialogTitle>
+              <DialogContent>
+                <Field label="Набор диалогов" hint={`Только ${CHECKLIST_CHANNEL_LABEL[saved?.channel ?? "all"]} — у другого канала свой чек-лист.`}>
+                  <Select value={applyDataset} onChange={(_, d) => setApplyDataset(d.value)}>
+                    <option value="">Все наборы ({channelDialogs.length})</option>
+                    {applyDatasets.map((n) => (
+                      <option key={n} value={n}>
+                        {n} ({channelDialogs.filter((d) => d.dataset === n).length})
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Body1 block style={{ marginTop: 12 }}>
+                  Будет переоценено <b>{applyTargets.length}</b> диалогов моделью «{provider?.name}»
+                  {onlyChanged ? " — заново судятся только изменённые критерии." : " — все критерии заново."}
+                </Body1>
+                {provider?.kind === "cloud" ? (
+                  <Caption1 block>Каждый диалог — платные вызовы облачной модели (у Claude — несколько прогонов на диалог).</Caption1>
+                ) : null}
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={() => setApplyOpen(false)}>Отмена</Button>
+                <Button
+                  appearance="primary"
+                  disabled={!applyTargets.length}
+                  onClick={() => {
+                    setApplyOpen(false);
+                    batch.start({ dialog_ids: applyTargets.map((d) => d.conversation_id), provider: provider?.id, reuse_unchanged: onlyChanged });
+                  }}
+                >
+                  Переоценить {applyTargets.length}
+                </Button>
+              </DialogActions>
+            </DialogBody>
+          </DialogSurface>
+        </Dialog>
         {batch.job || batch.error ? (
           <div className={s.progressRow}>
             <BatchProgress job={batch.job} error={batch.error} />

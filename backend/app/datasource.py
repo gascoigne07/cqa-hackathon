@@ -24,9 +24,11 @@ class DataSourceError(RuntimeError):
 
 def parse_payload(payload, default_dataset: str = "UPLOAD") -> tuple[str, list[Dialog]]:  # noqa: ANN001
     dataset = default_dataset
+    # Check isSuccess before the shape of `data`: on an unknown group_id the API answers
+    # {"isSuccess": false, "error": "...", "data": null} — show its error, not «Неизвестный формат».
+    if isinstance(payload, dict) and payload.get("isSuccess") is False:
+        raise DataSourceError(f"API организаторов вернул ошибку: {payload.get('error') or 'isSuccess=false'} — проверьте group_id")
     if isinstance(payload, dict) and "data" in payload and isinstance(payload["data"], dict):
-        if payload.get("isSuccess") is False:
-            raise DataSourceError(payload.get("error") or "API returned isSuccess=false")
         payload = payload["data"]
     if isinstance(payload, dict) and "records" in payload:
         dataset = payload.get("dataset_group_id") or dataset

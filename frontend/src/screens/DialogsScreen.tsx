@@ -72,6 +72,7 @@ export function DialogsScreen() {
   const { provider } = useProvider();
   const batch = useBatchJob();
 
+  const [dataset, setDataset] = useState(""); // ⊕ "" = all datasets
   const [language, setLanguage] = useState("");
   const [channel, setChannel] = useState("");
   const [search, setSearch] = useState("");
@@ -87,15 +88,18 @@ export function DialogsScreen() {
   const all = dialogs.data ?? [];
   const rows = useMemo(() => {
     let list = all;
+    if (dataset) list = list.filter((d) => (d.dataset ?? "") === dataset);
     if (language) list = list.filter((d) => d.language === language);
     if (channel) list = list.filter((d) => d.channel === channel);
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter((d) => d.conversation_id.toLowerCase().includes(q) || d.preview.toLowerCase().includes(q));
+      list = list.filter(
+        (d) => d.conversation_id.toLowerCase().includes(q) || d.preview.toLowerCase().includes(q) || (d.dataset ?? "").toLowerCase().includes(q),
+      );
     }
     if (sort === "score") list = [...list].sort((a, b) => (a.last_score?.total ?? 999) - (b.last_score?.total ?? 999));
     return list;
-  }, [all, language, channel, search, sort]);
+  }, [all, dataset, language, channel, search, sort]);
 
   const scored = all.filter((d) => d.last_score);
   const totals = scored.map((d) => d.last_score!.total).filter((t): t is number => t != null);
@@ -103,12 +107,18 @@ export function DialogsScreen() {
   const openAppeals = scored.reduce((n, d) => n + (d.last_score?.open_appeals ?? 0), 0);
   const languages = [...new Set(all.map((d) => d.language))];
   const channels = [...new Set(all.map((d) => d.channel))];
+  const datasets = [...new Set(all.map((d) => d.dataset ?? "").filter(Boolean))];
+  const datasetCount = (name: string) => all.filter((d) => d.dataset === name).length;
+  // Export takes each dialog's latest score: flag rows not scored by the selected model (e.g. an old mock score).
+  const stale = provider ? rows.filter((d) => d.last_score?.provider !== provider.id) : [];
+  const showStale = stale.length > 0 && rows.some((d) => d.last_score);
 
   async function runImport() {
     setBusy(true);
     try {
       const r = await api.importGroup(groupId.trim());
-      setNotice({ intent: "success", text: `Набор ${r.dataset}: новых ${r.imported}, обновлено ${r.updated}.` });
+      setNotice({ intent: "success", text: `Набор ${r.dataset}: новых ${r.imported}, обновлено ${r.updated}. Фильтр «Набор» переключён на ${r.dataset}.` });
+      setDataset(r.dataset);
       setImportOpen(false);
       await qc.invalidateQueries({ queryKey: ["dialogs"] });
     } catch (e) {
@@ -122,7 +132,8 @@ export function DialogsScreen() {
     setBusy(true);
     try {
       const r = await api.upload(file);
-      setNotice({ intent: "success", text: `Загружено: новых ${r.imported}, обновлено ${r.updated} (набор ${r.dataset}).` });
+      setNotice({ intent: "success", text: `Загружено: новых ${r.imported}, обновлено ${r.updated} (набор ${r.dataset}). Фильтр «Набор» переключён на него.` });
+      setDataset(r.dataset);
       await qc.invalidateQueries({ queryKey: ["dialogs"] });
     } catch (e) {
       setNotice({ intent: "error", text: e instanceof Error ? e.message : String(e) });
@@ -165,6 +176,16 @@ export function DialogsScreen() {
       <div className={s.toolbar}>
         <Field label="Поиск">
           <Input value={search} onChange={(_, d) => setSearch(d.value)} placeholder="ID или текст" />
+        </Field>
+        <Field label="Набор">
+          <Select value={dataset} onChange={(_, d) => setDataset(d.value)}>
+            <option value="">Все ({all.length})</option>
+            {datasets.map((n) => (
+              <option key={n} value={n}>
+                {n} ({datasetCount(n)})
+              </option>
+            ))}
+          </Select>
         </Field>
         <Field label="Язык">
           <Select value={language} onChange={(_, d) => setLanguage(d.value)}>
@@ -235,6 +256,15 @@ export function DialogsScreen() {
       </div>
 
       <BatchProgress job={batch.job} error={batch.error} />
+      {showStale ? (
+        <MessageBar intent="warning">
+          <MessageBarBody>
+            {stale.length} из {rows.length} диалогов в списке не оценены моделью «{provider?.name}» — в CSV/JSON попадёт их последняя
+            оценка другой модели или пустая строка: {stale.slice(0, 5).map((d) => d.conversation_id).join(", ")}
+            {stale.length > 5 ? "…" : ""}. Переоцените их перед выгрузкой.
+          </MessageBarBody>
+        </MessageBar>
+      ) : null}
       {notice ? (
         <MessageBar intent={notice.intent}>
           <MessageBarBody>{notice.text}</MessageBarBody>
