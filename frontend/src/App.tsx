@@ -1,11 +1,12 @@
 import { Tab, TabList, Text, makeStyles, tokens } from "@fluentui/react-components";
-import { ChatMultipleRegular, GavelRegular, TaskListLtrRegular } from "@fluentui/react-icons";
+import { ChatMultipleRegular, DataBarHorizontalRegular, GavelRegular, TaskListLtrRegular } from "@fluentui/react-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "./api/cqa";
 import { ProviderToggle } from "./components/ProviderToggle";
 import { ProviderProvider } from "./lib/provider";
 import { navigate, useRoute } from "./router";
+import { AccuracyScreen } from "./screens/AccuracyScreen";
 import { AppealsScreen } from "./screens/AppealsScreen";
 import { ChecklistScreen } from "./screens/ChecklistScreen";
 import { DialogsScreen } from "./screens/DialogsScreen";
@@ -47,6 +48,7 @@ const useStyles = makeStyles({
   subTitle: { color: tokens.colorNeutralForeground1 },
   subNote: { color: tokens.colorNeutralForeground3 },
   grow: { flexGrow: 1 },
+  tabs: { maxWidth: "100%", overflowX: "auto", scrollbarWidth: "none", "::-webkit-scrollbar": { display: "none" } },
   main: { padding: "20px", maxWidth: "1520px", width: "100%", margin: "0 auto", boxSizing: "border-box" },
 });
 
@@ -82,17 +84,22 @@ function Shell() {
       <div className={s.header}>
         <header className={s.bar}>
           <Brand />
-          <TabList selectedValue={tab} onTabSelect={(_, d) => navigate({ name: d.value as "dialogs" | "checklist" | "appeals" })}>
-            <Tab value="dialogs" icon={<ChatMultipleRegular />}>
-              Диалоги
-            </Tab>
-            <Tab value="checklist" icon={<TaskListLtrRegular />}>
-              Чек-лист
-            </Tab>
-            <Tab value="appeals" icon={<GavelRegular />}>
-              Апелляции{openAppeals.data?.length ? ` (${openAppeals.data.length})` : ""}
-            </Tab>
-          </TabList>
+          <div className={s.tabs}>
+            <TabList selectedValue={tab} onTabSelect={(_, d) => navigate({ name: d.value as "dialogs" | "checklist" | "appeals" | "accuracy" })}>
+              <Tab value="dialogs" icon={<ChatMultipleRegular />}>
+                Диалоги
+              </Tab>
+              <Tab value="checklist" icon={<TaskListLtrRegular />}>
+                Чек-лист
+              </Tab>
+              <Tab value="appeals" icon={<GavelRegular />}>
+                Апелляции{openAppeals.data?.length ? ` (${openAppeals.data.length})` : ""}
+              </Tab>
+              <Tab value="accuracy" icon={<DataBarHorizontalRegular />}>
+                Точность
+              </Tab>
+            </TabList>
+          </div>
           <span className={s.grow} />
           <ProviderToggle />
         </header>
@@ -102,6 +109,7 @@ function Shell() {
         {route.name === "dialog" && <ResultScreen key={route.id} dialogId={route.id} />}
         {route.name === "checklist" && <ChecklistScreen />}
         {route.name === "appeals" && <AppealsScreen appealId={route.id} />}
+        {route.name === "accuracy" && <AccuracyScreen />}
       </main>
     </div>
   );

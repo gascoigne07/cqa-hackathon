@@ -8,7 +8,8 @@ export type Route =
   | { name: "dialogs" }
   | { name: "dialog"; id: string }
   | { name: "checklist" }
-  | { name: "appeals"; id?: number };
+  | { name: "appeals"; id?: number }
+  | { name: "accuracy" };
 
 export function parseHash(hash: string): Route {
   const [path] = hash.replace(/^#/, "").split("?");
@@ -16,6 +17,7 @@ export function parseHash(hash: string): Route {
   if (parts[0] === "dialog" && parts[1]) return { name: "dialog", id: parts[1] };
   if (parts[0] === "checklist") return { name: "checklist" };
   if (parts[0] === "appeals") return { name: "appeals", id: parts[1] ? Number(parts[1]) : undefined };
+  if (parts[0] === "accuracy") return { name: "accuracy" };
   return { name: "dialogs" };
 }
 
@@ -27,6 +29,8 @@ export function href(route: Route): string {
       return "#/checklist";
     case "appeals":
       return route.id ? `#/appeals/${route.id}` : "#/appeals";
+    case "accuracy":
+      return "#/accuracy";
     default:
       return "#/";
   }
