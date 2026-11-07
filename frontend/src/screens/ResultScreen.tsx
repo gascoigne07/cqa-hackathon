@@ -6,6 +6,7 @@ import {
   Divider,
   Link,
   MessageBar,
+  MessageBarActions,
   MessageBarBody,
   MessageBarTitle,
   ProgressBar,
@@ -18,14 +19,14 @@ import {
   mergeClasses,
   tokens,
 } from "@fluentui/react-components";
-import { ArrowLeftRegular, CodeRegular, SparkleRegular } from "@fluentui/react-icons";
+import { ArrowDownRegular, ArrowLeftRegular, CodeRegular, SparkleRegular } from "@fluentui/react-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/cqa";
 import type { CriterionResult, ScoreResponse } from "../api/contract";
 import { AppealDialog } from "../components/AppealDialog";
 import { AudioPlayer, type AudioPlayerHandle } from "../components/AudioPlayer";
-import { CriterionCard } from "../components/CriterionCard";
+import { CriterionCard, LOW_CONFIDENCE, reviewState } from "../components/CriterionCard";
 import { BigScore, ToneBadge } from "../components/ScoreBadge";
 import { TraceDialog } from "../components/TraceDialog";
 import { TranscriptView, type Focus } from "../components/TranscriptView";
@@ -64,7 +65,18 @@ const useStyles = makeStyles({
   muted: { color: tokens.colorNeutralForeground3 },
   scoring: { display: "flex", gap: "12px", alignItems: "center", padding: "18px" },
   pill: { display: "flex", gap: "6px", alignItems: "center" },
+  reviewList: { display: "flex", flexWrap: "wrap", columnGap: "12px", rowGap: "2px", marginTop: "4px" },
+  reviewTitle: { cursor: "pointer", ":hover": { textDecorationLine: "underline" } },
 });
+
+/** 1 критерий требует · 2 критерия требуют · 5 критериев требуют */
+function criteriaPhrase(n: number): string {
+  const d10 = n % 10;
+  const d100 = n % 100;
+  if (d10 === 1 && d100 !== 11) return `${n} критерий требует`;
+  if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return `${n} критерия требуют`;
+  return `${n} критериев требуют`;
+}
 
 export function ResultScreen({ dialogId }: { dialogId: string }) {
   const s = useStyles();
@@ -86,6 +98,18 @@ export function ResultScreen({ dialogId }: { dialogId: string }) {
   const [appealFor, setAppealFor] = useState<{ result: CriterionResult; name: string } | null>(null);
   const [traceOpen, setTraceOpen] = useState(false);
   const audio = useRef<AudioPlayerHandle>(null);
+  const [flashId, setFlashId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!flashId) return;
+    const t = window.setTimeout(() => setFlashId(null), 1900);
+    return () => window.clearTimeout(t);
+  }, [flashId]);
+  /** Scroll to a criterion card and highlight it briefly. */
+  const jumpTo = (criterionId: string) => {
+    document.getElementById(`criterion-${criterionId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    setFlashId(null);
+    window.requestAnimationFrame(() => setFlashId(criterionId));
+  };
 
   const setScore = (r: ScoreResponse) => qc.setQueryData(["score", dialogId], r);
 
@@ -135,6 +159,9 @@ export function ResultScreen({ dialogId }: { dialogId: string }) {
   }
 
   const busy = runScore.isPending;
+  const demo = score?.provider === "mock";
+  const flagged = score ? score.results.filter((r) => reviewState(r, demo).flagged) : [];
+  const confidenceShown = !!score && !demo && score.results.some((r) => r.confidence != null);
 
   return (
     <div className={s.root}>
@@ -244,7 +271,49 @@ export function ResultScreen({ dialogId }: { dialogId: string }) {
                 <MessageBar intent="info">
                   <MessageBarBody>
                     <MessageBarTitle>Демо-провайдер</MessageBarTitle>
-                    Оценки по ключевым словам. Для живого разбора выберите Gemini или Qwen3 в переключателе модели.
+                    Оценки по ключевым словам. Для живого разбора выберите Claude, Gemini или Qwen3 в переключателе модели.
+                    Уверенность у демо условная — «проверить» ставится только по признаку «нужна проверка».
+                  </MessageBarBody>
+                </MessageBar>
+              ) : null}
+
+              {flagged.length ? (
+                <MessageBar intent="warning" layout="multiline">
+                  <MessageBarBody>
+                    <MessageBarTitle>
+                      <span
+                        className={s.reviewTitle}
+                        role="link"
+                        tabIndex={0}
+                        onClick={() => jumpTo(flagged[0].criterion_id)}
+                        onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && jumpTo(flagged[0].criterion_id)}
+                      >
+                        {criteriaPhrase(flagged.length)} проверки
+                      </span>
+                    </MessageBarTitle>
+                    ИИ честно отмечает, где не уверен (меньше {Math.round(LOW_CONFIDENCE * 100)}% совпадающих голосов или
+                    противоречивые данные) — эти критерии стоит посмотреть вручную или оспорить.
+                    <div className={s.reviewList}>
+                      {flagged.map((r) => {
+                        const low = r.confidence != null && !demo && r.confidence < LOW_CONFIDENCE;
+                        return (
+                          <Link key={r.criterion_id} onClick={() => jumpTo(r.criterion_id)}>
+                            {nameOf(r)} · {low ? `уверенность ${Math.round(r.confidence! * 100)}%` : reviewState(r, demo).reasons[0]}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </MessageBarBody>
+                  <MessageBarActions>
+                    <Button size="small" icon={<ArrowDownRegular />} onClick={() => jumpTo(flagged[0].criterion_id)}>
+                      К первому
+                    </Button>
+                  </MessageBarActions>
+                </MessageBar>
+              ) : confidenceShown ? (
+                <MessageBar intent="success">
+                  <MessageBarBody>
+                    ИИ уверен во всех критериях: согласие голосов модели не ниже {Math.round(LOW_CONFIDENCE * 100)}%.
                   </MessageBarBody>
                 </MessageBar>
               ) : null}
@@ -262,6 +331,8 @@ export function ResultScreen({ dialogId }: { dialogId: string }) {
                       appeal.reset();
                       setAppealFor({ result: r, name: nameOf(r) });
                     }}
+                    demo={demo}
+                    flash={flashId === r.criterion_id}
                   />
                 ))}
               </div>
@@ -298,7 +369,11 @@ export function ResultScreen({ dialogId }: { dialogId: string }) {
                           Грубая ошибка
                         </Badge>
                       ) : null}
-                      {score.needs_review ? (
+                      {flagged.length ? (
+                        <Badge color="warning" appearance="tint" className={s.reviewTitle} onClick={() => jumpTo(flagged[0].criterion_id)}>
+                          Нужна проверка: {flagged.length}
+                        </Badge>
+                      ) : score.needs_review ? (
                         <Badge color="warning" appearance="tint">
                           Нужна проверка
                         </Badge>
