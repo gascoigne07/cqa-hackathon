@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Env / secrets
+.env
+*.key
+secrets.*
+
+# DB / data cache
+*.sqlite3
+*.db
+data/cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+backend/data/
+labeling/
