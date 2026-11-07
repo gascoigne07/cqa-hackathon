@@ -250,7 +250,7 @@ export function OverviewScreen() {
             </Card>
             <Card className={s.kpi}>
               <Caption1 className={s.muted}>Средний балл</Caption1>
-              <span className={s.kpiValue}>{view.avg == null ? "—" : one(view.avg)}</span>
+              <span className={s.kpiValue}>{view.avg == null ? "—" : Math.round(view.avg)}</span>
             </Card>
             <Card
               className={mergeClasses(s.kpi, view.gross > 0 && s.kpiLink)}

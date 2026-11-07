@@ -263,13 +263,13 @@ export function DialogsScreen({ grossOnly = false }: { grossOnly?: boolean }) {
         <h1 className={s.h1}>Диалоги</h1>
         <p className={s.summary}>
           {dialogs.data ? `${all.length} диалогов` : "—"} · оценено {scored.length} · средний балл{" "}
-          {formatScore(avg == null ? null : Math.round(avg * 10) / 10)} ·{" "}
+          {formatScore(avg == null ? null : Math.round(avg))} ·{" "}
           {gross > 0 ? (
             <Link className={s.grossLink} onClick={() => setGrossOnly(!grossOnly)} title={grossOnly ? "Показать все диалоги" : "Показать только диалоги с грубыми ошибками"}>
-              грубых нарушений {gross}
+              грубых ошибок {gross}
             </Link>
           ) : (
-            <>грубых нарушений {gross}</>
+            <>грубых ошибок {gross}</>
           )}{" "}
           · открытых апелляций {openAppeals}
         </p>
@@ -407,7 +407,7 @@ export function DialogsScreen({ grossOnly = false }: { grossOnly?: boolean }) {
         ) : !rows.length ? (
           grossOnly && !gross ? (
             <div className={s.empty}>
-              <p className={s.emptyText}>Грубых ошибок нет: ни в одном из {scored.length} оценённых диалогов модель не нашла грубого нарушения.</p>
+              <p className={s.emptyText}>Грубых ошибок нет: ни в одном из {scored.length} оценённых диалогов модель не нашла грубой ошибки.</p>
               <Button size="small" onClick={() => setGrossOnly(false)}>
                 Показать все диалоги
               </Button>
@@ -532,7 +532,7 @@ function DialogRow({
       <td className={mergeClasses(s.td, s.tdTags)}>
         {sc && (sc.gross_error || sc.needs_review || sc.open_appeals || sc.total !== sc.original_total) ? (
           <div className={s.tags}>
-            {sc.gross_error ? <ToneBadge tone="danger">Грубое нарушение</ToneBadge> : null}
+            {sc.gross_error ? <ToneBadge tone="danger">Грубая ошибка</ToneBadge> : null}
             {sc.needs_review ? <ToneBadge tone="warning">Проверить</ToneBadge> : null}
             {sc.open_appeals ? <ToneBadge tone="informative">Апелляций: {sc.open_appeals}</ToneBadge> : null}
             {sc.total !== sc.original_total ? <ToneBadge tone="subtle">Пересмотрено</ToneBadge> : null}

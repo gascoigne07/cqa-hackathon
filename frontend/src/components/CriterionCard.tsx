@@ -167,7 +167,7 @@ export function CriterionCard({ result: r, name, section, onEvidence, onRange, o
         <div className={s.badges}>
           {r.gross_error ? (
             <ToneBadge tone="danger" appearance="filled">
-              Грубое нарушение
+              Грубая ошибка
             </ToneBadge>
           ) : r.gross_error_if ? (
             <Tooltip

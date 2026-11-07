@@ -374,7 +374,7 @@ export function ResultScreen({ dialogId, focus: focusCriterion }: { dialogId: st
             {score ? <ScoreMark score={score.total} /> : <span className={s.muted}>ещё не оценён</span>}
             {score?.gross_error ? (
               <ToneBadge tone="danger" appearance="filled">
-                Грубое нарушение
+                Грубая ошибка
               </ToneBadge>
             ) : null}
             {flagged.length ? (
@@ -421,7 +421,7 @@ export function ResultScreen({ dialogId, focus: focusCriterion }: { dialogId: st
                 gross.map((r) => (
                   <div key={r.criterion_id} className={s.grossItem}>
                     <Text>
-                      <b>{nameOf(r)}:</b> {cleanExplanation(r.explanation) || "модель отметила грубое нарушение"}
+                      <b>{nameOf(r)}:</b> {cleanExplanation(r.explanation) || "модель отметила грубую ошибку"}
                     </Text>
                     {r.evidence ? (
                       <Text className={s.grossQuote}>
@@ -435,7 +435,7 @@ export function ResultScreen({ dialogId, focus: focusCriterion }: { dialogId: st
                   </div>
                 ))
               ) : (
-                <Text>Модель отметила грубое нарушение — см. критерии ниже.</Text>
+                <Text>Модель отметила грубую ошибку — см. критерии ниже.</Text>
               )}
             </div>
           </MessageBarBody>

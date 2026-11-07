@@ -29,7 +29,7 @@ const TITLES: Record<string, { bad: string; partial?: string; good?: string }> =
   empathy: { bad: "Нет эмпатии к клиенту", good: "Проявлена эмпатия" },
   dialog_management: { bad: "Сбой в ведении диалога", partial: "Заминки в ведении диалога", good: "Диалог ведётся чётко" },
   closing: { bad: "Нет итога и прощания", good: "Итог и прощание" },
-  gross_errors: { bad: "Грубое нарушение" },
+  gross_errors: { bad: "Грубая ошибка" },
 };
 
 /** Time of every turn: real offsets where known, otherwise evenly spaced by position. */
