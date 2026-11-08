@@ -135,7 +135,7 @@ def main():
     print(f"\n-> {a.out} ({len(results)} записей)")
     print("валидация:", "ОК ✓" if not probs else "ПРОБЛЕМЫ: " + "; ".join(probs))
     if a.team == "УКАЖИ_НАЗВАНИЕ_КОМАНДЫ":
-        print("⚠️  team_name не задан! Запусти с --team 'Название' или CQA_TEAM=... (НЕ YaTebyaMognu — это конкурент)")
+        print("⚠️  team_name не задан! Запусти с --team 'Название' или CQA_TEAM=...")
 
 
 if __name__ == "__main__":
