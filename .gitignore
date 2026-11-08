@@ -21,3 +21,8 @@ frontend/dist-webresource/
 labeling/
 ml/__pycache__/
 backend/.venv312/
+
+# internal docs
+PITCH-*.md
+DEMO-SCRIPT.md
+BRIEF-*.md
